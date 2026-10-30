@@ -48,7 +48,7 @@ async function timed(fn) {
   }
 }
 
-export async function runDiagnostics(host) {
+export async function runDiagnostics(host, { capture = null } = {}) {
   const checks = [];
   const add = (c) => checks.push(c);
 
@@ -166,6 +166,19 @@ export async function runDiagnostics(host) {
     }
   } catch (e) {
     add({ id: 'mac-queue', title: 'macOS print queue', result: 'info', detail: `Could not read CUPS state: ${e.message}` });
+  }
+
+  if (capture) {
+    add({
+      id: 'capture',
+      title: 'Mac print capture',
+      result: !capture.running ? 'fail' : !capture.queue ? 'warn' : 'pass',
+      detail: !capture.running
+        ? `The capture printer is not running: ${capture.error ?? 'unknown error'}. Jobs sent to "Canon G5040 (via Manager)" wait until it is back.`
+        : !capture.queue
+          ? `Listening on ${capture.uri}, but no macOS printer points at it.`
+          : `Listening on ${capture.uri}; macOS printer ${capture.queue}${capture.isDefault ? ' is the default' : ' is not the default'}.`,
+    });
   }
 
   return { host, checks, ranAt: new Date().toISOString() };

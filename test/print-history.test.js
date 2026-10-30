@@ -84,3 +84,38 @@ test('ids that are not ours never reach the filesystem', async () => {
   await assert.rejects(h.document('../index'), /not found/i);
   assert.equal(await h.remove('../index'), false);
 });
+
+test('a Mac job is stored from a slice of the spool file with its format, raw job settings and source', async () => {
+  const { writeFile } = await import('node:fs/promises');
+  const spool = join(dir, 'spool.ipp');
+  await writeFile(spool, Buffer.concat([Buffer.from('IPPHEADER'), Buffer.from('URFDATA')]));
+  const thumbs = [];
+  const h = new PrintHistory(join(dir, 'h'), { makeThumbnail: async (doc, format) => (thumbs.push(format), Buffer.from('T')) });
+  await h.load();
+  const e = await h.add({
+    name: 'Quarterly report', source: 'mac', format: 'image/urf',
+    document: { path: spool, offset: 9, length: 7 },
+    jobAttrs: Buffer.from([0x02, 0x21, 0x00, 0x06]),
+    options: {}, result: { status: 'successful-ok', jobId: 41 },
+  });
+  assert.equal(e.source, 'mac');
+  assert.equal(e.format, 'image/urf');
+  assert.deepEqual(await h.document(e.id), Buffer.from('URFDATA'));
+  assert.deepEqual(await h.jobAttributes(e.id), Buffer.from([0x02, 0x21, 0x00, 0x06]));
+  assert.deepEqual(thumbs, ['image/urf']);
+});
+
+test('history is also capped by total size, dropping the oldest prints first', async () => {
+  const h = new PrintHistory(join(dir, 'h'), { limit: 30, maxBytes: 25, makeThumbnail: fakeThumb });
+  await h.load();
+  for (let i = 1; i <= 4; i++) await h.add({ name: `p${i}`, jpeg: Buffer.alloc(10, i), options: {}, result: { status: 'successful-ok' } });
+  // 10 bytes each: only the newest two fit under 25 bytes.
+  assert.deepEqual(h.list().map((e) => e.name), ['p4', 'p3']);
+});
+
+test('the newest print is kept even if it alone exceeds the size cap', async () => {
+  const h = new PrintHistory(join(dir, 'h'), { maxBytes: 5, makeThumbnail: fakeThumb });
+  await h.load();
+  await h.add({ name: 'big', jpeg: Buffer.alloc(50), options: {}, result: { status: 'successful-ok' } });
+  assert.deepEqual(h.list().map((e) => e.name), ['big']);
+});

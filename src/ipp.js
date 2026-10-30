@@ -256,3 +256,129 @@ export function ippRequest({ host, port = 631, path = '/ipp/print', timeoutMs = 
 export function groupAttrs(msg, tag) {
   return Object.assign({}, ...msg.groups.filter((g) => g.tag === tag).map((g) => g.attrs));
 }
+
+OP.CREATE_JOB = 0x0005;
+OP.SEND_DOCUMENT = 0x0006;
+OP.CLOSE_JOB = 0x003b;
+
+/**
+ * Walk the raw attribute bytes of an IPP message without decoding values.
+ * Calls visit({ groupTag, valueTag, name, value, index, start, end }) for every value
+ * (index 0 is the value that carries the name). Returns { groups, dataOffset } where each
+ * group is { tag, start, end } with start at the group's delimiter byte.
+ */
+function walk(buf, visit) {
+  if (buf.length < 9) throw new Error('IPP message truncated');
+  const groups = [];
+  let pos = 8;
+  let group = null;
+  let name = null;
+  let index = 0;
+  let depth = 0; // collection nesting: member attributes belong to the enclosing value
+  for (;;) {
+    if (pos >= buf.length) throw new Error('IPP message truncated');
+    const tag = buf[pos];
+    if (tag < 0x10) {
+      if (group) group.end = pos;
+      if (tag === END_TAG) {
+        pos += 1;
+        break;
+      }
+      group = { tag, start: pos, end: null };
+      groups.push(group);
+      pos += 1;
+      continue;
+    }
+    const start = pos;
+    if (pos + 3 > buf.length) throw new Error('IPP message truncated');
+    const nameLen = buf.readUInt16BE(pos + 1);
+    const n = buf.toString('utf8', pos + 3, pos + 3 + nameLen);
+    let p = pos + 3 + nameLen;
+    if (p + 2 > buf.length) throw new Error('IPP message truncated');
+    const valueLen = buf.readUInt16BE(p);
+    p += 2;
+    if (p + valueLen > buf.length) throw new Error('IPP message truncated');
+    const value = buf.subarray(p, p + valueLen);
+    pos = p + valueLen;
+    if (depth === 0) {
+      if (nameLen) {
+        name = n;
+        index = 0;
+      } else index += 1;
+      visit?.({ groupTag: group?.tag, valueTag: tag, name, value, index, start, end: pos, depth });
+    } else {
+      visit?.({ groupTag: group?.tag, valueTag: tag, name, value, index, start, end: pos, depth, member: true });
+    }
+    if (tag === 0x34) depth += 1;
+    if (tag === 0x37) depth -= 1;
+  }
+  return { groups, dataOffset: pos };
+}
+
+export function scanMessage(buf) {
+  return walk(buf);
+}
+
+/**
+ * Copy an IPP message, letting fn change top-level attribute values in place.
+ * fn returns undefined (keep), null (drop this value) or a Buffer (new value bytes).
+ * Collection values and their members are always kept unchanged (fn is not called for members).
+ * Dropping the first value of an attribute moves the name onto the next kept value.
+ */
+export function rewriteAttributes(buf, fn) {
+  const out = [buf.subarray(0, 8)];
+  let cursor = 8;
+  let pendingName = null; // name to put on the next kept value after dropping the first one
+  let skippingCollection = false;
+  let collectionDepth = 0;
+  const { dataOffset } = walk(buf, (v) => {
+    out.push(buf.subarray(cursor, v.start)); // group delimiters between values
+    cursor = v.end;
+    if (v.member || skippingCollection) {
+      if (!skippingCollection) out.push(buf.subarray(v.start, v.end));
+      if (v.valueTag === 0x34) collectionDepth += 1;
+      if (v.valueTag === 0x37 && --collectionDepth === 0) skippingCollection = false;
+      return;
+    }
+    const decision = v.valueTag === 0x34 ? undefined : fn(v);
+    if (decision === null) {
+      if (v.index === 0) pendingName = v.name;
+      if (v.valueTag === 0x34) {
+        skippingCollection = true;
+        collectionDepth = 1;
+      }
+      return;
+    }
+    const name = v.index === 0 || pendingName === v.name ? v.name : '';
+    if (pendingName === v.name) pendingName = null;
+    const value = decision === undefined ? v.value : decision;
+    const head = Buffer.alloc(3);
+    head.writeUInt8(v.valueTag, 0);
+    head.writeUInt16BE(Buffer.byteLength(name), 1);
+    const len = Buffer.alloc(2);
+    len.writeUInt16BE(value.length);
+    out.push(head, Buffer.from(name, 'utf8'), len, value);
+    if (v.valueTag === 0x34) collectionDepth = 1;
+  });
+  out.push(buf.subarray(cursor, dataOffset), buf.subarray(dataOffset));
+  return Buffer.concat(out);
+}
+
+/** Encode an IPP response. groups: [[groupTag, [[name, type, value], ...]], ...]; the operation group with charset and language is added first. */
+export function encodeResponse({ version = [1, 1], status, requestId }, groups = [], operationAttrs = []) {
+  const header = Buffer.alloc(8);
+  header.writeUInt8(version[0], 0);
+  header.writeUInt8(version[1], 1);
+  header.writeUInt16BE(status, 2);
+  header.writeUInt32BE(requestId, 4);
+  const chunks = [header, Buffer.from([0x01])];
+  chunks.push(encodeAttribute('attributes-charset', 'charset', 'utf-8'));
+  chunks.push(encodeAttribute('attributes-natural-language', 'naturalLanguage', 'en'));
+  for (const [n, t, v] of operationAttrs) chunks.push(encodeAttribute(n, t, v));
+  for (const [tag, attrs] of groups) {
+    chunks.push(Buffer.from([tag]));
+    for (const [n, t, v] of attrs) chunks.push(encodeAttribute(n, t, v));
+  }
+  chunks.push(Buffer.from([END_TAG]));
+  return Buffer.concat(chunks);
+}

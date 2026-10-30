@@ -170,3 +170,7 @@ dialog.wide form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(2
 .preview-side { display: grid; align-content: start; gap: 8px; min-width: 0; }
 .preview-side h2 { overflow-wrap: anywhere; }
 @media (max-width: 700px) { dialog.wide form { grid-template-columns: 1fr; } .preview-wrap, .preview-wrap img { max-height: 45vh; } }
+
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.badge.mac { color: var(--accent); border-color: var(--accent); }
+.print-item .thumb .placeholder { color: var(--muted); font-size: 12px; }

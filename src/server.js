@@ -6,13 +6,18 @@ import { readFile, writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getStatus, getJobs, cancelJob, identify, printJpeg, toJpeg, discover, getMacQueues, resumeMacQueue } from './printer.js';
+import { getStatus, getJobs, cancelJob, identify, printJpeg, postRawPrintJob, toJpeg, discover, getMacQueues, resumeMacQueue } from './printer.js';
 import { MAINTENANCE, runMaintenance } from './maintenance.js';
 import { maintenanceBlockedReason } from './status.js';
 import { runDiagnostics } from './diagnostics.js';
 import { renderTestPageJpeg } from './testpage.js';
 import { History } from './history.js';
 import { PrintHistory } from './print-history.js';
+import { startIppProxy } from './ipp-proxy.js';
+import { describeJobAttrs, buildRawPrintJob, withCopies } from './capture.js';
+import { parseUrfHeader, urfFirstPageThumbnailBmp } from './urf.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
@@ -22,6 +27,11 @@ const PORT = Number(process.env.PORT ?? 4280);
 const BIND = process.env.BIND ?? '127.0.0.1';
 const POLL_MS = Number(process.env.POLL_MS ?? 30000);
 const MAX_UPLOAD = 50 * 1024 * 1024;
+const IPP_PORT = Number(process.env.IPP_PORT ?? 8631);
+const LOOPBACK = /^(localhost|127\.|0\.0\.0\.0|::1$|\[::1\])/i;
+const run = promisify(execFile);
+let proxy = null;
+let proxyError = null;
 
 const history = new History(join(DATA, 'history.jsonl'));
 const prints = new PrintHistory(join(DATA, 'prints'), { limit: 30 });
@@ -42,6 +52,19 @@ async function printAndRecord(name, jpeg, options, reprintOf) {
   return { ...result, printId: entry.id };
 }
 let config = { host: process.env.PRINTER_HOST ?? null };
+
+async function captureStatus() {
+  const { stdout } = await run('/usr/bin/lpstat', ['-v']).catch(() => ({ stdout: '' }));
+  const queue = stdout.split('\n').map((l) => /^device for ([^:]+): (.+)$/.exec(l)).find((m) => m && proxy && m[2].includes(`:${proxy.port}/ipp/print`));
+  const { stdout: def } = await run('/usr/bin/lpstat', ['-d']).catch(() => ({ stdout: '' }));
+  return {
+    running: Boolean(proxy),
+    uri: proxy?.uri ?? null,
+    error: proxyError,
+    queue: queue?.[1] ?? null,
+    isDefault: Boolean(queue && def.includes(queue[1])),
+  };
+}
 
 async function loadConfig() {
   await mkdir(DATA, { recursive: true });
@@ -104,6 +127,8 @@ const routes = {
     const body = await readJson(req);
     if (body.host !== undefined) {
       if (!/^[A-Za-z0-9.:-]+$/.test(body.host)) throw Object.assign(new Error('Enter an IP address or hostname'), { status: 400 });
+      // The capture printer listens on this Mac; pointing the app at itself would loop jobs forever.
+      if (LOOPBACK.test(body.host)) throw Object.assign(new Error('Enter the printer\'s network address, not this Mac'), { status: 400 });
       config.host = body.host;
     }
     await saveConfig();
@@ -120,7 +145,7 @@ const routes = {
   'GET /api/attributes': async () => (await getStatus(requireHost())).attrs,
   'GET /api/jobs': async () => getJobs(requireHost()),
   'GET /api/diagnostics': async () => {
-    const result = await runDiagnostics(requireHost());
+    const result = await runDiagnostics(requireHost(), { capture: await captureStatus() });
     const failing = result.checks.filter((c) => c.result === 'fail').map((c) => c.title);
     await history.add({ type: 'diagnostics', failing });
     return result;
@@ -134,6 +159,7 @@ const routes = {
     return q;
   },
   'GET /api/prints': async () => prints.list(),
+  'GET /api/capture': async () => captureStatus(),
   'GET /api/history': async () => history.entries.slice(-500).reverse(),
   'POST /api/identify': async () => {
     const r = await identify(requireHost());
@@ -206,7 +232,27 @@ async function handle(req, res) {
       const entry = prints.get(id);
       if (!entry) return send(res, 404, { error: 'Print not found' });
       if (req.method === 'GET' && action === 'thumb') return send(res, 200, await prints.thumbnail(id), 'image/jpeg');
-      if (req.method === 'GET' && action === 'image') return send(res, 200, await prints.document(id), 'image/jpeg');
+      if (req.method === 'GET' && action === 'image') {
+        if (entry.format !== 'image/urf') return send(res, 200, await prints.document(id), 'image/jpeg');
+        return send(res, 200, await urfPreviewJpeg(await prints.document(id)), 'image/jpeg');
+      }
+      if (req.method === 'POST' && action === 'reprint' && entry.hasJobAttrs) {
+        const body = await readJson(req);
+        const host = requireHost();
+        const document = await prints.document(id);
+        const jobAttrs = await prints.jobAttributes(id);
+        const copies = body.copies !== undefined ? Number(body.copies) : undefined;
+        let result;
+        try {
+          result = await postRawPrintJob(host, buildRawPrintJob({ host, name: entry.name, user: 'g5040-manager', format: entry.format, jobAttrs, document, copies }));
+        } catch (e) {
+          result = { status: e.message, ok: false };
+        }
+        const newAttrs = copies !== undefined ? withCopies(jobAttrs, copies) : jobAttrs;
+        const saved = await prints.add({ name: entry.name, source: entry.source, format: entry.format, document: { path: prints.documentPath(id), offset: 0, length: entry.bytes }, jobAttrs: newAttrs, options: { ...entry.options, ...(copies !== undefined ? { copies } : {}) }, result, reprintOf: id });
+        await history.add({ type: 'action', action: 'reprint', file: entry.name, result: result.status, jobId: result.jobId });
+        return send(res, result.ok ? 200 : 502, { ...result, printId: saved.id, ...(result.ok ? {} : { error: `Printer refused the re-print: ${result.status}` }) });
+      }
       if (req.method === 'POST' && action === 'reprint') {
         const body = await readJson(req);
         const overrides = Object.fromEntries(PRINT_OPTIONS.filter((k) => body[k] !== undefined).map((k) => [k, body[k]]));
@@ -257,9 +303,67 @@ async function poll() {
   setTimeout(poll, next).unref();
 }
 
+/** A larger preview of page 1 of a captured raster job. */
+async function urfPreviewJpeg(doc) {
+  const { mkdtemp, writeFile: wf, readFile: rf, rm: rmf } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'g5040-preview-'));
+  try {
+    await wf(join(dir, 'p.bmp'), urfFirstPageThumbnailBmp(doc, { maxWidth: 1240 }).bmp);
+    await run('/usr/bin/sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '85', join(dir, 'p.bmp'), '--out', join(dir, 'p.jpg')]);
+    return await rf(join(dir, 'p.jpg'));
+  } finally {
+    await rmf(dir, { recursive: true, force: true });
+  }
+}
+
+async function recordCapturedJob(job) {
+  let pages = null;
+  let options = {};
+  try {
+    options = describeJobAttrs(job.jobAttrs);
+  } catch { /* keep the job even if its settings can't be read */ }
+  if (job.format === 'image/urf' && job.docPath) {
+    try {
+      const { open: openFile } = await import('node:fs/promises');
+      const fh = await openFile(job.docPath, 'r');
+      const head = Buffer.alloc(12);
+      await fh.read(head, 0, 12, job.docOffset);
+      await fh.close();
+      pages = parseUrfHeader(head).pageCount;
+    } catch { /* unknown page count */ }
+  }
+  const entry = await prints.add({
+    name: job.name,
+    source: 'mac',
+    format: job.format,
+    document: { path: job.docPath, offset: job.docOffset, length: job.docLength },
+    jobAttrs: job.jobAttrs,
+    options: { ...options, ...(pages ? { pages } : {}), user: job.user },
+    result: { status: job.status, ok: job.ok, jobId: job.printerJobId },
+  });
+  await history.add({ type: 'action', action: 'mac-print', file: job.name, result: job.status, jobId: job.printerJobId, printId: entry.id });
+}
+
 await history.load();
 await prints.load();
 await loadConfig();
+if (config.host && LOOPBACK.test(config.host)) {
+  console.error(`Ignoring loopback printer address ${config.host}`);
+  config.host = null;
+}
+try {
+  proxy = await startIppProxy({
+    port: IPP_PORT,
+    printerHost: () => config.host,
+    spoolDir: join(DATA, 'spool'),
+    onJobForwarded: recordCapturedJob,
+    log: (m) => console.log(`[capture] ${m}`),
+  });
+  console.log(`Capture printer on ${proxy.uri}`);
+} catch (e) {
+  proxyError = e.code === 'EADDRINUSE' ? `Port ${IPP_PORT} is already in use; Mac print capture is off. Set IPP_PORT to another port.` : e.message;
+  console.error(`Capture printer not started: ${proxyError}`);
+}
 http.createServer(handle).listen(PORT, BIND, () => {
   console.log(`G5040 Manager on http://${BIND === '0.0.0.0' ? 'localhost' : BIND}:${PORT}  (printer: ${config.host ?? 'not configured'})`);
 });

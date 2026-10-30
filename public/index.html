@@ -121,7 +121,7 @@
     </div>
     <article class="card">
       <div class="row between"><h2>Recent prints</h2><span class="muted small" id="printsCount"></span></div>
-      <p class="muted small">The last 30 prints sent from this app, kept exactly as they went to the printer. Prints from other apps on this Mac are not included.</p>
+      <p class="muted small" id="printsNote">The last 30 prints, kept exactly as they went to the printer.</p>
       <div class="prints" id="prints"></div>
     </article>
   </section>
@@ -162,6 +162,10 @@
 
   <section data-panel="settings" hidden>
     <article class="card">
+      <h2>Mac print capture</h2>
+      <div id="captureStatus" class="muted">Loading…</div>
+    </article>
+    <article class="card">
       <h2>Printer address</h2>
       <div class="row">
         <input id="hostInput" placeholder="192.168.1.178" spellcheck="false">
@@ -187,6 +191,7 @@
         <label>Quality <select id="rpQuality"><option value="3">Draft</option><option value="4">Standard</option><option value="5">High</option></select></label>
         <label>Paper <select id="rpMedia"></select></label>
       </div>
+      <p class="small muted" id="rpMacNote" hidden>Printed from the Mac: paper, colour, sides and quality are part of the saved pages, so a re-print repeats them exactly. You can change the number of copies.</p>
       <div class="row wrap">
         <button type="button" id="rpPrint">Print again</button>
         <button type="button" class="ghost" id="rpDelete">Remove from history</button>

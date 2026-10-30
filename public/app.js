@@ -49,6 +49,11 @@ function showTab(name) {
   if (name === 'print') loadPrints();
 }
 $$('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+// Back/forward and edited URLs switch tabs too.
+window.addEventListener('hashchange', () => {
+  const name = location.hash.slice(1);
+  if ($(`[data-panel="${CSS.escape(name)}"]`) && $(`[data-panel="${CSS.escape(name)}"]`).hidden) showTab(name);
+});
 document.addEventListener('click', (e) => {
   const g = e.target.closest('[data-goto]');
   if (g) showTab(g.dataset.goto);
@@ -145,7 +150,9 @@ async function refresh() {
     $('#banner').hidden = false;
     $('#banner').innerHTML = e.status === 409
       ? `${esc(e.message)} <button class="ghost" data-goto="settings">Open settings</button>`
-      : `Can't reach the printer: ${esc(e.message)}. Check that it is switched on and connected, then run <a href="#diagnostics" data-goto="diagnostics">Diagnostics</a>.`;
+      : /EHOSTUNREACH/.test(e.message)
+        ? `macOS is blocking this app from the local network (${esc(e.message)}). Open System Settings → Privacy &amp; Security → Local Network and turn on <b>node</b>, then reload.`
+        : `Can't reach the printer: ${esc(e.message)}. Check that it is switched on and connected, then run <a href="#diagnostics" data-goto="diagnostics">Diagnostics</a>.`;
   }
 }
 $('#refreshBtn').addEventListener('click', refresh);
@@ -252,7 +259,7 @@ $('#testPageBtn').addEventListener('click', printTestPage);
 $('#testPageQuick').addEventListener('click', printTestPage);
 
 // ---- recent prints
-const COLOR_LABEL = { color: 'Colour', monochrome: 'B&W' };
+const COLOR_LABEL = { color: 'Colour', monochrome: 'B&W', 'auto-monochrome': 'B&W', auto: 'Auto colour' };
 const SIDES_LABEL = { 'one-sided': '1-sided', 'two-sided-long-edge': '2-sided', 'two-sided-short-edge': '2-sided (short)' };
 const QUALITY_LABEL = { 3: 'Draft', 4: 'Standard', 5: 'High' };
 let printList = [];
@@ -273,9 +280,10 @@ async function loadPrints() {
   $('#prints').innerHTML = printList.length
     ? printList.map((p) => `
       <button class="print-item" data-print="${p.id}" title="${esc(p.name)}">
-        <span class="thumb"><img src="/api/prints/${p.id}/thumb" alt="" loading="lazy"></span>
+        <span class="thumb">${p.hasThumbnail === false ? '<span class="placeholder">No preview</span>' : `<img src="/api/prints/${p.id}/thumb" alt="" loading="lazy">`}</span>
         <span class="meta">
           <b>${esc(p.name)}</b>
+          <span><span class="badge ${p.source === 'mac' ? 'mac' : ''}">${p.source === 'mac' ? 'From Mac' : 'From this app'}</span>${p.options?.pages ? ` <span class="muted">${p.options.pages} page${p.options.pages > 1 ? 's' : ''}</span>` : ''}</span>
           <span class="muted">${new Date(p.at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}${p.reprintOf ? ' · re-print' : ''}</span>
           ${p.ok ? `<span class="muted">${esc(optionsSummary(p.options))}</span>` : `<span class="failed">Not printed: ${esc(p.status)}</span>`}
         </span>
@@ -292,7 +300,10 @@ document.addEventListener('click', (e) => {
   $('#previewImg').src = `/api/prints/${openPrint.id}/image`;
   $('#previewImg').alt = openPrint.name;
   $('#previewName').textContent = openPrint.name;
-  $('#previewMeta').textContent = `${new Date(openPrint.at).toLocaleString()} · ${openPrint.ok ? `job ${openPrint.jobId ?? '?'}, ${openPrint.status}` : `not printed (${openPrint.status})`}`;
+  $('#previewMeta').textContent = `${openPrint.source === 'mac' ? `From the Mac${o.user ? ` (${o.user})` : ''}${o.pages ? `, ${o.pages} page${o.pages > 1 ? 's' : ''} (preview shows page 1)` : ''} · ` : ''}${new Date(openPrint.at).toLocaleString()} · ${openPrint.ok ? `job ${openPrint.jobId ?? '?'}, ${openPrint.status}` : `not printed (${openPrint.status})`}`;
+  const fromMac = openPrint.source === 'mac';
+  $('#rpMacNote').hidden = !fromMac;
+  for (const sel of ['#rpColor', '#rpSides', '#rpQuality', '#rpMedia']) $(sel).closest('label').hidden = fromMac;
   $('#rpCopies').value = o.copies ?? 1;
   $('#rpColor').value = o.colorMode ?? 'color';
   $('#rpSides').value = o.sides ?? 'one-sided';
@@ -307,7 +318,9 @@ $('#rpPrint').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Sending…';
   try {
-    const body = { copies: $('#rpCopies').value, colorMode: $('#rpColor').value, sides: $('#rpSides').value, quality: $('#rpQuality').value, media: $('#rpMedia').value };
+    const body = openPrint.source === 'mac'
+      ? { copies: $('#rpCopies').value }
+      : { copies: $('#rpCopies').value, colorMode: $('#rpColor').value, sides: $('#rpSides').value, quality: $('#rpQuality').value, media: $('#rpMedia').value };
     const r = await api(`/api/prints/${openPrint.id}/reprint`, { method: 'POST', body: JSON.stringify(body) });
     $('#printDialog').close();
     reportPrint(r);
@@ -394,6 +407,7 @@ $('#attrFilter').addEventListener('input', () => allAttrs && renderAttrs());
 // ---- history
 function describe(e) {
   if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}${e.raw ? ` · ${rawSignals(e.raw)}` : ''}`;
+  if (e.type === 'action' && e.action === 'mac-print') return `Printed from the Mac: "${e.file}" → ${e.result}`;
   if (e.type === 'action' && e.action === 'reprint') return `You re-printed "${e.file}" → ${e.result}`;
   if (e.type === 'action') return `You ran: ${state.maintenance[e.action]?.label ?? e.action}${e.file ? ` "${e.file}"` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
   if (e.type === 'diagnostics') return e.failing.length ? `Diagnostics: failing ${e.failing.join(', ')}` : 'Diagnostics: all checks passed';
@@ -445,7 +459,22 @@ function drawInkChart(samples) {
 }
 
 // ---- settings
+async function loadCapture() {
+  try {
+    const c = await api('/api/capture');
+    $('#captureStatus').innerHTML = !c.running
+      ? `<p style="color:var(--err)">Off: ${esc(c.error ?? 'not running')}</p>`
+      : !c.queue
+        ? '<p>The capture printer is running, but no macOS printer uses it yet.</p>'
+        : `<p><b>On.</b> Printing to <b>Canon G5040 (via Manager)</b> saves every job in Recent prints, then sends it to the printer.${c.isDefault ? ' It is your default printer.' : ' It is not your default printer; choose it in the print dialog.'}</p>
+           <p class="small muted">If this app is not running, macOS keeps those jobs waiting and sends them when it starts again. The direct queue "Canon G5000 series" still works without the app.</p>`;
+  } catch (e) {
+    $('#captureStatus').textContent = e.message;
+  }
+}
+
 async function loadConfig() {
+  loadCapture();
   state.config = await api('/api/config');
   $('#hostInput').value = state.config.host ?? '';
   $('#pollEvery').textContent = Math.round(state.config.pollMs / 1000);

@@ -2,7 +2,8 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ippRequest, groupAttrs, OP } from './ipp.js';
+import { ippRequest, groupAttrs, decodeMessage, STATUS, OP } from './ipp.js';
+import http from 'node:http';
 import { getRemoteUiStatus } from './canon.js';
 import { getMaintenanceStatus } from './maintenance.js';
 import { summarize } from './status.js';
@@ -155,4 +156,26 @@ export async function resumeMacQueue(name) {
   await run('/usr/sbin/cupsenable', [name]);
   await run('/usr/sbin/cupsaccept', [name]).catch(() => {});
   return (await getMacQueues('')).find((q) => q.name === name);
+}
+
+/** POST a complete, already-encoded IPP request (e.g. a replayed captured job) to the printer. */
+export function postRawPrintJob(host, body, { timeoutMs = 120000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host, port: 631, path: '/ipp/print', method: 'POST', headers: { 'Content-Type': 'application/ipp', 'Content-Length': body.length }, timeout: timeoutMs }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const msg = decodeMessage(Buffer.concat(chunks));
+          const job = groupAttrs(msg, 'job');
+          resolve({ status: STATUS[msg.statusCode] ?? `0x${msg.statusCode.toString(16)}`, ok: msg.statusCode < 0x0100, jobId: job['job-id'] });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error(`IPP request timed out after ${timeoutMs} ms`)));
+    req.on('error', reject);
+    req.end(body);
+  });
 }

@@ -10,11 +10,37 @@ PRINTER_HOST=192.168.1.178 npm start   # skip Bonjour discovery
 
 It binds to 127.0.0.1 only: there is no login, and the API can start cleanings and prints. Settings and history live in `data/` (gitignored).
 
+### Run at login
+
+```bash
+scripts/install-login-item.sh      # LaunchAgent com.masimplo.g5040-manager, restarts on crash
+scripts/uninstall-login-item.sh    # stop and remove it (add --remove-printer to also remove the capture printer)
+```
+
+Logs go to `~/Library/Logs/g5040-manager/`. macOS must allow **node** under System Settings → Privacy & Security → Local Network, otherwise the login item gets `EHOSTUNREACH` talking to the printer (a terminal-started copy works without it).
+
+## Mac print capture
+
+The app also runs an IPP printer on `ipp://127.0.0.1:8631/ipp/print` (`src/ipp-proxy.js`). The macOS printer **Canon G5040 (via Manager)** points at it, so every job printed from any Mac app is saved in Recent prints (with a page-1 preview decoded from the URF raster) and then forwarded unchanged to the real printer as a single Print-Job.
+
+Set up (done once):
+
+```bash
+cp /etc/cups/ppd/Canon_G5000_series.ppd data/capture-queue.ppd
+lpadmin -p Canon_G5040_Manager -v ipp://127.0.0.1:8631/ipp/print -P data/capture-queue.ppd \
+  -D "Canon G5040 (via Manager)" -o printer-error-policy=retry-job -E
+lpoptions -d Canon_G5040_Manager    # make it the default; lpoptions -d Canon_G5000_series to undo
+```
+
+How it behaves (from CUPS's ipp backend): macOS sends Validate-Job, then Create-Job and a chunked Send-Document. The proxy spools the document to disk, answers at once, and forwards it; the printer aborts Create-Job jobs whose document takes more than 60 s, so it never streams. A busy or unreachable printer is retried for up to 24 hours. Refusals end the job as `aborted` (macOS drops it without pausing the queue); the proxy never answers `server-error-internal-error`, which would pause it. If the app is not running, macOS keeps the job and retries for up to 7 days. The direct queue `Canon_G5000_series` keeps working without the app.
+
+Re-printing a captured job replays the stored URF pages with the job's original IPP settings byte-for-byte; only the copy count can change. History keeps the newest 30 prints and at most 500 MB.
+
 ## What it does
 
 - **Overview**: state in plain English, ink tanks, paper per tray, sheets fed, print head replacement counts, Canon support codes, and this Mac's CUPS queue (with a resume button, since macOS pauses the queue when a job fails).
 - **Maintenance**: nozzle check, cleaning, deep cleaning, alignment check print, automatic head alignment. Refused while the printer is busy.
-- **Print**: images and single-page PDFs (converted to JPEG with `sips`), plus a colour test page.
+- **Print**: images and single-page PDFs (converted to JPEG with `sips`), a colour test page, and **Recent prints**: the last 30 prints from the app or the Mac, with preview and re-print.
 - **Jobs**, **Diagnostics** (ports, IPP, Remote UI assets, HTTPS certificate, printer clock, macOS queue), **History** (status changes, ink over time, actions).
 
 ## How it talks to the printer
@@ -24,6 +50,7 @@ It binds to 127.0.0.1 only: there is no login, and the API can start cleanings a
 | IPP, port 631 (`src/ipp.js`) | status, ink, jobs, printing JPEG, Identify-Printer |
 | CHMP, port 80 (`src/chmp.js`) | IVEC XML: `GetStatus` (device/print/maintenance) and maintenance jobs |
 | Remote UI `JS_MDL/model.js` | the printer's own busy-state code |
+| IPP server, 127.0.0.1:8631 (`src/ipp-proxy.js`) | receives Mac print jobs (capture printer) |
 
 CHMP: POST an IVEC command to `/canon/ij/command2/port1`, then GET the same path **on the same keep-alive connection** for the reply. A maintenance job is `StartJob` → `TestPrint`/`Cleaning` (servicetype `maintenance`) → `EndJob`, all on one connection; on another connection the printer answers `NotStart`.
 
