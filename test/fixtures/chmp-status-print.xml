@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<cmd xmlns:ivec="http://www.canon.com/ns/cmd/2008/07/common/"
+xmlns:vcn="http://www.canon.com/ns/cmd/2008/07/canon/">
+<ivec:contents>
+<ivec:operation>GetStatusResponse</ivec:operation>
+<ivec:param_set servicetype="print">
+<ivec:response>OK</ivec:response>
+<ivec:response_detail></ivec:response_detail>
+<ivec:status>idle</ivec:status>
+<ivec:status_detail/>
+<ivec:current_support_code/>
+<vcn:eid>
+<vcn:url_id>00</vcn:url_id>
+</vcn:eid>
+<ivec:currentpapertype physicalinputbin="inputbin_p1">custom-media-type-canon-6</ivec:currentpapertype>
+<ivec:currentpapersize physicalinputbin="inputbin_p1">iso_a4_210x297mm</ivec:currentpapersize>
+<ivec:current_papersize_width physicalinputbin="inputbin_p1">21000</ivec:current_papersize_width>
+<ivec:current_papersize_height physicalinputbin="inputbin_p1">29700</ivec:current_papersize_height>
+<ivec:currentpapertype physicalinputbin="inputbin_p2">stationery</ivec:currentpapertype>
+<ivec:currentpapersize physicalinputbin="inputbin_p2">iso_a4_210x297mm</ivec:currentpapersize>
+<ivec:current_papersize_width physicalinputbin="inputbin_p2">21000</ivec:current_papersize_width>
+<ivec:current_papersize_height physicalinputbin="inputbin_p2">29700</ivec:current_papersize_height>
+<ivec:marker_info>
+<ivec:ink>
+<ivec:model>none</ivec:model>
+<ivec:color>PGBK</ivec:color>
+<ivec:icon>none</ivec:icon>
+<ivec:level>60</ivec:level>
+<ivec:order>1</ivec:order>
+</ivec:ink>
+<ivec:ink>
+<ivec:model>none</ivec:model>
+<ivec:color>C</ivec:color>
+<ivec:icon>none</ivec:icon>
+<ivec:level>30</ivec:level>
+<ivec:order>2</ivec:order>
+</ivec:ink>
+<ivec:ink>
+<ivec:model>none</ivec:model>
+<ivec:color>M</ivec:color>
+<ivec:icon>none</ivec:icon>
+<ivec:level>30</ivec:level>
+<ivec:order>3</ivec:order>
+</ivec:ink>
+<ivec:ink>
+<ivec:model>none</ivec:model>
+<ivec:color>Y</ivec:color>
+<ivec:icon>none</ivec:icon>
+<ivec:level>30</ivec:level>
+<ivec:order>4</ivec:order>
+</ivec:ink>
+</ivec:marker_info>
+<ivec:status_detail_list/>
+<vcn:hri>4</vcn:hri>
+<vcn:pdr>C</vcn:pdr>
+<vcn:hrc>00</vcn:hrc>
+<vcn:isu>0</vcn:isu>
+<vcn:pvinfo><![CDATA[8001-8050]]></vcn:pvinfo>
+<vcn:msi>
+<vcn:item type="A">OFF</vcn:item>
+<vcn:item type="B">240</vcn:item>
+<vcn:item type="D">auto</vcn:item>
+<vcn:item type="E">3</vcn:item>
+<vcn:item type="J">OFF</vcn:item>
+<vcn:item type="K">21000700</vcn:item>
+<vcn:item type="M">ON</vcn:item>
+</vcn:msi>
+<vcn:rrc>0</vcn:rrc>
+<ivec:jobinfo/>
+</ivec:param_set>
+</ivec:contents>
+</cmd>

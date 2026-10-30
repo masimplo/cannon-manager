@@ -1,0 +1,12 @@
+{
+  "name": "canon-g5040-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local web app to diagnose, run and maintain a Canon PIXMA G5040 (G5000 series) over the network",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

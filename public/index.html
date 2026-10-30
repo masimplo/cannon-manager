@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G5040 Manager</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='6' width='12' height='6' rx='1' fill='%23334'/><rect x='4' y='2' width='8' height='4' fill='%23889'/><rect x='4' y='10' width='8' height='4' fill='%23fff' stroke='%23334'/></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="dot" id="healthDot"></span>
+    <div>
+      <h1 id="printerName">Canon G5040</h1>
+      <p class="sub" id="printerSub">Connecting…</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="muted small" id="updatedAt"></span>
+    <button class="ghost" id="refreshBtn" title="Refresh now">Refresh</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="maintenance">Maintenance</button>
+  <button role="tab" data-tab="print">Print</button>
+  <button role="tab" data-tab="jobs">Jobs</button>
+  <button role="tab" data-tab="diagnostics">Diagnostics</button>
+  <button role="tab" data-tab="history">History</button>
+  <button role="tab" data-tab="settings">Settings</button>
+</nav>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <section data-panel="overview">
+    <div class="grid two">
+      <article class="card">
+        <h2>Status</h2>
+        <p class="headline" id="headline">—</p>
+        <dl class="facts" id="facts"></dl>
+        <ul class="issues" id="issues"></ul>
+      </article>
+      <article class="card">
+        <h2>Ink tanks</h2>
+        <div class="inks" id="inks"></div>
+        <p class="muted small">Levels are the printer's own estimate. On MegaTank printers the tank itself is the truth: refill before any colour drops below the lower line.</p>
+      </article>
+    </div>
+    <div class="grid two">
+      <article class="card">
+        <h2>Paper and usage</h2>
+        <dl class="facts" id="usage"><dt class="muted">Loading…</dt><dd></dd></dl>
+      </article>
+      <article class="card">
+        <h2>This Mac's print queue</h2>
+        <div id="macQueues" class="muted">Loading…</div>
+      </article>
+    </div>
+    <article class="card">
+      <h2>Quick actions</h2>
+      <div class="row wrap">
+        <button data-maint="nozzle-check">Print nozzle check</button>
+        <button data-goto="maintenance" class="ghost">Cleaning…</button>
+        <button id="testPageQuick" class="ghost">Print colour test page</button>
+        <button id="identifyBtn" class="ghost">Find my printer (flash light)</button>
+        <a class="ghost button" id="remoteUiLink" target="_blank" rel="noopener">Open printer's own web page</a>
+      </div>
+    </article>
+  </section>
+
+  <section data-panel="maintenance" hidden>
+    <article class="card">
+      <h2>Fix faded or streaky prints</h2>
+      <ol class="steps">
+        <li><b>Print a nozzle check.</b> Look at the pattern: every line should be complete, with no gaps.</li>
+        <li><b>If lines are missing, run a cleaning</b> and print another nozzle check.</li>
+        <li><b>Still missing after two cleanings?</b> Turn the printer off for at least 24 hours, then check again. If it still fails, run a <i>deep cleaning</i> from the printer's own panel (Setup → Maintenance → Deep Cleaning); it uses much more ink, so use it sparingly.</li>
+        <li>If straight lines look jagged or colours are offset, run a <b>print head alignment</b>.</li>
+      </ol>
+    </article>
+    <div class="grid three" id="maintCards"></div>
+    <details class="card">
+      <summary><h2 class="inline">Advanced: send a raw BJL command</h2></summary>
+      <p class="muted">Sends one line inside a Canon BJL control block over port 9100. Only use commands you know your printer supports; unknown commands are normally ignored, but there is no guarantee.</p>
+      <div class="row">
+        <input id="rawCmd" placeholder="@TestPrint=NozzleCheck" spellcheck="false" autocomplete="off">
+        <button id="rawSend" class="danger">Send</button>
+      </div>
+    </details>
+  </section>
+
+  <section data-panel="print" hidden>
+    <div class="grid two">
+      <article class="card">
+        <h2>Print a file</h2>
+        <p class="muted">Images (JPEG, PNG, HEIC, TIFF, GIF) and single-page PDFs. Other files are converted to JPEG on this Mac first.</p>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="image/*,application/pdf">
+          <span id="dropText">Drop a file here or click to choose</span>
+        </label>
+        <div class="form">
+          <label>Paper <select id="media"></select></label>
+          <label>Sides
+            <select id="sides">
+              <option value="one-sided">One-sided</option>
+              <option value="two-sided-long-edge">Two-sided (long edge)</option>
+              <option value="two-sided-short-edge">Two-sided (short edge)</option>
+            </select>
+          </label>
+          <label>Colour
+            <select id="colorMode"><option value="color">Colour</option><option value="monochrome">Black &amp; white</option></select>
+          </label>
+          <label>Quality
+            <select id="quality"><option value="3">Draft</option><option value="4" selected>Standard</option><option value="5">High</option></select>
+          </label>
+          <label>Copies <input type="number" id="copies" min="1" max="99" value="1"></label>
+        </div>
+        <button id="printBtn" disabled>Print</button>
+      </article>
+      <article class="card">
+        <h2>Colour test page</h2>
+        <p>Prints solid K/C/M/Y/R/G/B bars, gradient ramps, a fine line grid and checkerboards on one A4 page. Use it to spot banding, missing colours, and misalignment in normal printing (the nozzle check tests the head directly).</p>
+        <button id="testPageBtn">Print test page</button>
+      </article>
+    </div>
+  </section>
+
+  <section data-panel="jobs" hidden>
+    <article class="card">
+      <div class="row between"><h2>Jobs on the printer</h2><button class="ghost" id="jobsRefresh">Refresh</button></div>
+      <table class="table"><thead><tr><th>ID</th><th>Name</th><th>From</th><th>State</th><th></th></tr></thead><tbody id="jobsActive"></tbody></table>
+      <h3>Recently completed</h3>
+      <table class="table"><thead><tr><th>ID</th><th>Name</th><th>From</th><th>State</th><th>Pages</th></tr></thead><tbody id="jobsDone"></tbody></table>
+    </article>
+  </section>
+
+  <section data-panel="diagnostics" hidden>
+    <article class="card">
+      <div class="row between"><h2>Network and service checks</h2><button id="diagRun">Run diagnostics</button></div>
+      <ul class="checks" id="checks"><li class="muted">Run diagnostics to check ports, IPP, the printer's web page, its HTTPS certificate and the macOS print queue.</li></ul>
+    </article>
+    <details class="card">
+      <summary><h2 class="inline">All IPP attributes</h2></summary>
+      <input id="attrFilter" placeholder="Filter, e.g. marker or media" spellcheck="false">
+      <table class="table mono" id="attrs"></table>
+    </details>
+  </section>
+
+  <section data-panel="history" hidden>
+    <article class="card">
+      <h2>Ink over time</h2>
+      <svg id="inkChart" class="chart" viewBox="0 0 800 220" preserveAspectRatio="none" role="img" aria-label="Ink levels over time"></svg>
+      <div class="legend" id="inkLegend"></div>
+    </article>
+    <article class="card">
+      <h2>Log</h2>
+      <p class="muted small">Status changes are recorded while this app is running (every <span id="pollEvery">30</span> s), plus every action you take here.</p>
+      <ul class="log" id="log"></ul>
+    </article>
+  </section>
+
+  <section data-panel="settings" hidden>
+    <article class="card">
+      <h2>Printer address</h2>
+      <div class="row">
+        <input id="hostInput" placeholder="192.168.1.178" spellcheck="false">
+        <button id="hostSave">Save</button>
+        <button id="discoverBtn" class="ghost">Find printers</button>
+      </div>
+      <ul class="found" id="found"></ul>
+      <p class="muted small">Tip: reserve this IP for the printer in your router (DHCP reservation). If the IP changes, the printer's HTTPS certificate no longer matches and macOS may lose the printer.</p>
+    </article>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="confirm">
+  <form method="dialog">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmBody"></p>
+    <div class="row end">
+      <button value="cancel" class="ghost">Cancel</button>
+      <button value="ok" id="confirmOk">Continue</button>
+    </div>
+  </form>
+</dialog>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

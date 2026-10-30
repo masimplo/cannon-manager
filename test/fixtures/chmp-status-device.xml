@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<cmd xmlns:ivec="http://www.canon.com/ns/cmd/2008/07/common/"
+xmlns:vcn="http://www.canon.com/ns/cmd/2008/07/canon/">
+<ivec:contents>
+<ivec:operation>GetStatusResponse</ivec:operation>
+<ivec:param_set servicetype="device">
+<ivec:response>OK</ivec:response>
+<ivec:response_detail/>
+<vcn:eid>
+<vcn:url_id>00</vcn:url_id>
+<vcn:redirect_url><![CDATA[http://rs.ciggws.net/rd.cgi?FNC=RUI_EID2&RES=C&DEV=G5000+series&CNM_SEP=0&mdl=G5000+series&low=0&out=0&ac=0&srcmdl=6&resid=Other&hriid=4]]></vcn:redirect_url>
+</vcn:eid>
+<ivec:network_interface>
+<ivec:interface_set id="wired0">
+<vcn:communication_method/>
+<ivec:ip>
+<ivec:hwaddress><![CDATA[00:00:5E:00:53:01]]></ivec:hwaddress>
+</ivec:ip>
+</ivec:interface_set>
+<ivec:interface_set id="wireless0">
+<vcn:communication_method>
+<vcn:item>infrastructure_mode</vcn:item>
+</vcn:communication_method>
+<ivec:ip>
+<ivec:hwaddress><![CDATA[00:00:5E:00:53:02]]></ivec:hwaddress>
+</ivec:ip>
+</ivec:interface_set>
+<ivec:interface_set id="wireless1">
+<vcn:communication_method>
+<vcn:item>access_point_mode</vcn:item>
+<vcn:item>wi_fi_direct_mode</vcn:item>
+</vcn:communication_method>
+<ivec:ip>
+<ivec:hwaddress><![CDATA[00:00:5E:00:53:03]]></ivec:hwaddress>
+</ivec:ip>
+</ivec:interface_set>
+</ivec:network_interface>
+<vcn:total_paper_num physicalinputbin="inputbin_p1">19</vcn:total_paper_num>
+<vcn:total_paper_num physicalinputbin="inputbin_p2">5821</vcn:total_paper_num>
+<vcn:head_replacement_count color="Black">1</vcn:head_replacement_count>
+<vcn:head_replacement_count color="Color">1</vcn:head_replacement_count>
+</ivec:param_set>
+</ivec:contents>
+</cmd>
