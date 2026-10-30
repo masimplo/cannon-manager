@@ -12,6 +12,7 @@ import { maintenanceBlockedReason } from './status.js';
 import { runDiagnostics } from './diagnostics.js';
 import { renderTestPageJpeg } from './testpage.js';
 import { History } from './history.js';
+import { PrintHistory } from './print-history.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
@@ -23,6 +24,23 @@ const POLL_MS = Number(process.env.POLL_MS ?? 30000);
 const MAX_UPLOAD = 50 * 1024 * 1024;
 
 const history = new History(join(DATA, 'history.jsonl'));
+const prints = new PrintHistory(join(DATA, 'prints'), { limit: 30 });
+const PRINT_OPTIONS = ['copies', 'media', 'sides', 'colorMode', 'quality'];
+
+/** Send a JPEG to the printer and keep it in the print history, even when the printer refuses it. */
+async function printAndRecord(name, jpeg, options, reprintOf) {
+  let result;
+  try {
+    result = await printJpeg(requireHost(), jpeg, { ...options, jobName: name });
+  } catch (e) {
+    result = { status: e.message, ok: false };
+    await prints.add({ name, jpeg, options, result, reprintOf });
+    throw e;
+  }
+  const entry = await prints.add({ name, jpeg, options, result, reprintOf });
+  await history.add({ type: 'action', action: reprintOf ? 'reprint' : 'print', file: name, result: result.status, jobId: result.jobId });
+  return { ...result, printId: entry.id };
+}
 let config = { host: process.env.PRINTER_HOST ?? null };
 
 async function loadConfig() {
@@ -115,6 +133,7 @@ const routes = {
     await history.add({ type: 'action', action: 'resume-mac-queue', queue: name, result: q?.enabled ? 'enabled' : 'still disabled' });
     return q;
   },
+  'GET /api/prints': async () => prints.list(),
   'GET /api/history': async () => history.entries.slice(-500).reverse(),
   'POST /api/identify': async () => {
     const r = await identify(requireHost());
@@ -122,19 +141,17 @@ const routes = {
     return r;
   },
   'POST /api/test-page': async (req) => {
-    const host = requireHost();
+    requireHost();
     const opts = await readJson(req);
-    const jpeg = await renderTestPageJpeg();
-    const r = await printJpeg(host, jpeg, { ...opts, jobName: 'G5040 Manager test page' });
-    await history.add({ type: 'action', action: 'test-page', result: r.status, jobId: r.jobId });
-    return r;
+    const options = Object.fromEntries(PRINT_OPTIONS.filter((k) => opts[k] !== undefined).map((k) => [k, opts[k]]));
+    return printAndRecord('Colour test page', await renderTestPageJpeg(), options);
   },
   'POST /api/print': async (req, url) => {
     const host = requireHost();
     const body = await readBody(req, MAX_UPLOAD);
     if (!body.length) throw Object.assign(new Error('No file received'), { status: 400 });
     const filename = decodeURIComponent(url.searchParams.get('filename') ?? 'upload');
-    const opts = Object.fromEntries(['copies', 'media', 'sides', 'colorMode', 'quality'].map((k) => [k, url.searchParams.get(k) || undefined]));
+    const opts = Object.fromEntries(PRINT_OPTIONS.map((k) => [k, url.searchParams.get(k) || undefined]));
     const isJpeg = body[0] === 0xff && body[1] === 0xd8;
     let jpeg = body;
     if (!isJpeg) {
@@ -149,9 +166,8 @@ const routes = {
         await rm(dir, { recursive: true, force: true });
       }
     }
-    const r = await printJpeg(host, jpeg, { ...opts, jobName: filename });
-    await history.add({ type: 'action', action: 'print', file: filename, result: r.status, jobId: r.jobId });
-    return r;
+    const options = Object.fromEntries(Object.entries(opts).filter(([, v]) => v !== undefined));
+    return printAndRecord(filename, jpeg, options);
   },
 };
 
@@ -160,7 +176,7 @@ async function handle(req, res) {
   const key = `${req.method} ${url.pathname}`;
 
   // Mutating requests must come from this app's own page (blocks drive-by requests from other sites).
-  if (req.method === 'POST') {
+  if (req.method === 'POST' || req.method === 'DELETE') {
     const origin = req.headers.origin;
     if (origin && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return send(res, 403, { error: 'Cross-origin request refused' });
   }
@@ -182,6 +198,22 @@ async function handle(req, res) {
       const r = await runMaintenance(host, id, { paper: body.paper === 'letter' ? 'letter' : 'a4' });
       await history.add({ type: 'action', action: id, forced: Boolean(body.force) });
       return send(res, 200, r);
+    }
+
+    const printRoute = /^\/api\/prints\/([0-9a-f-]{36})(?:\/(thumb|image|reprint))?$/.exec(url.pathname);
+    if (printRoute) {
+      const [, id, action] = printRoute;
+      const entry = prints.get(id);
+      if (!entry) return send(res, 404, { error: 'Print not found' });
+      if (req.method === 'GET' && action === 'thumb') return send(res, 200, await prints.thumbnail(id), 'image/jpeg');
+      if (req.method === 'GET' && action === 'image') return send(res, 200, await prints.document(id), 'image/jpeg');
+      if (req.method === 'POST' && action === 'reprint') {
+        const body = await readJson(req);
+        const overrides = Object.fromEntries(PRINT_OPTIONS.filter((k) => body[k] !== undefined).map((k) => [k, body[k]]));
+        return send(res, 200, await printAndRecord(entry.name, await prints.document(id), { ...entry.options, ...overrides }, id));
+      }
+      if (req.method === 'DELETE' && !action) return send(res, 200, { deleted: await prints.remove(id) });
+      return send(res, 405, { error: 'Method not allowed' });
     }
 
     const cancel = /^\/api\/jobs\/(\d+)\/cancel$/.exec(url.pathname);
@@ -208,20 +240,27 @@ async function handle(req, res) {
   }
 }
 
+// Sample every POLL_MS when idle, every BUSY_POLL_MS while the printer is busy, so short
+// events such as a roller cleaning started from the printer panel still reach the log.
+const BUSY_POLL_MS = Number(process.env.BUSY_POLL_MS ?? 5000);
 async function poll() {
-  if (!config.host) return;
-  try {
-    const { summary } = await getStatus(config.host);
-    await history.recordStatus(summary);
-  } catch (e) {
-    await history.recordUnreachable(e.message);
+  let next = POLL_MS;
+  if (config.host) {
+    try {
+      const { summary } = await getStatus(config.host);
+      await history.recordStatus(summary);
+      if (summary.health === 'busy' || summary.state === 'processing') next = BUSY_POLL_MS;
+    } catch (e) {
+      await history.recordUnreachable(e.message);
+    }
   }
+  setTimeout(poll, next).unref();
 }
 
 await history.load();
+await prints.load();
 await loadConfig();
 http.createServer(handle).listen(PORT, BIND, () => {
   console.log(`G5040 Manager on http://${BIND === '0.0.0.0' ? 'localhost' : BIND}:${PORT}  (printer: ${config.host ?? 'not configured'})`);
 });
-setInterval(poll, POLL_MS).unref();
 poll();

@@ -7,7 +7,16 @@ const MAINT_NAMES = {
   'TestPrint:auto_registration': 'Automatic head alignment',
   'Cleaning:regular': 'Cleaning',
   'Cleaning:deep': 'Deep cleaning',
+  'Cleaning:choke': 'Ink flush',
 };
+
+/** "RollerCleaning" → "Roller cleaning", for operations without a known name. */
+function maintenanceName({ operation, type }) {
+  const known = MAINT_NAMES[`${operation}:${type}`];
+  if (known) return known;
+  const words = String(operation).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 const STATES = { 3: 'idle', 4: 'processing', 5: 'stopped' };
 
@@ -95,7 +104,7 @@ export function summarize(attrs, remoteUi, maintenance = null) {
   if (state === 'stopped' || issues.some((i) => i.severity === 'error')) health = 'error';
 
   if (maintenance?.running && health !== 'error') health = 'busy';
-  let headline = maintenance?.running ? `${MAINT_NAMES[`${maintenance.operation}:${maintenance.type}`] ?? maintenance.operation} in progress` : remoteUi?.busyStateText;
+  let headline = maintenance?.running ? `${maintenanceName(maintenance)} in progress` : remoteUi?.busyStateText;
   if (!headline) {
     if (state === 'idle') headline = health === 'ok' ? 'Ready to print' : 'Idle, needs attention';
     else if (state === 'processing') headline = 'Printing or busy';

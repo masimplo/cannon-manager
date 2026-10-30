@@ -119,6 +119,11 @@
         <button id="testPageBtn">Print test page</button>
       </article>
     </div>
+    <article class="card">
+      <div class="row between"><h2>Recent prints</h2><span class="muted small" id="printsCount"></span></div>
+      <p class="muted small">The last 30 prints sent from this app, kept exactly as they went to the printer. Prints from other apps on this Mac are not included.</p>
+      <div class="prints" id="prints"></div>
+    </article>
   </section>
 
   <section data-panel="jobs" hidden>
@@ -169,6 +174,27 @@
   </section>
 </main>
 
+<dialog id="printDialog" class="wide">
+  <form method="dialog" id="printDialogForm">
+    <div class="preview-wrap"><img id="previewImg" alt=""></div>
+    <div class="preview-side">
+      <h2 id="previewName"></h2>
+      <p class="muted small" id="previewMeta"></p>
+      <div class="form">
+        <label>Copies <input type="number" id="rpCopies" min="1" max="99" value="1"></label>
+        <label>Colour <select id="rpColor"><option value="color">Colour</option><option value="monochrome">Black &amp; white</option></select></label>
+        <label>Sides <select id="rpSides"><option value="one-sided">One-sided</option><option value="two-sided-long-edge">Two-sided (long edge)</option><option value="two-sided-short-edge">Two-sided (short edge)</option></select></label>
+        <label>Quality <select id="rpQuality"><option value="3">Draft</option><option value="4">Standard</option><option value="5">High</option></select></label>
+        <label>Paper <select id="rpMedia"></select></label>
+      </div>
+      <div class="row wrap">
+        <button type="button" id="rpPrint">Print again</button>
+        <button type="button" class="ghost" id="rpDelete">Remove from history</button>
+        <button value="close" class="ghost">Close</button>
+      </div>
+    </div>
+  </form>
+</dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="confirm">
   <form method="dialog">

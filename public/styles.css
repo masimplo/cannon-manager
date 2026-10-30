@@ -154,3 +154,19 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 }
 
 [hidden] { display: none !important; }
+
+.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.print-item { display: grid; gap: 6px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); text-align: left; overflow: hidden; font-weight: 400; }
+.print-item:hover { border-color: var(--accent); filter: none; }
+.print-item .thumb { aspect-ratio: 210 / 297; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.print-item .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.print-item .meta { padding: 0 10px 10px; font-size: 12px; display: grid; gap: 2px; min-width: 0; }
+.print-item .meta b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.print-item .failed { color: var(--err); font-weight: 600; }
+dialog.wide { max-width: min(920px, calc(100vw - 32px)); width: 100%; }
+dialog.wide form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 20px; }
+.preview-wrap { background: #fff; border: 1px solid var(--line); border-radius: 8px; display: grid; place-items: center; max-height: 75vh; overflow: auto; }
+.preview-wrap img { max-width: 100%; max-height: 75vh; display: block; }
+.preview-side { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.preview-side h2 { overflow-wrap: anywhere; }
+@media (max-width: 700px) { dialog.wide form { grid-template-columns: 1fr; } .preview-wrap, .preview-wrap img { max-height: 45vh; } }

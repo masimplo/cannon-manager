@@ -68,3 +68,14 @@ test('a running maintenance job shows as busy with its name and blocks further m
   assert.equal(s.headline, 'Deep cleaning in progress');
   assert.match(maintenanceBlockedReason(s), /Deep cleaning in progress/);
 });
+
+test('maintenance started from the printer panel gets a readable name', () => {
+  const idle = { ...fixtureAttrs, 'printer-state': 4, 'printer-state-reasons': 'none' };
+  const headline = (operation, type = '') => summarize(idle, null, { running: true, operation, type, progress: 'processing' }).headline;
+  // Reported by the G5040 on 2026-10-30 during a cleaning started from its panel.
+  assert.equal(headline('RollerCleaning'), 'Roller cleaning in progress');
+  assert.equal(headline('Cleaning', 'choke'), 'Ink flush in progress');
+  assert.equal(headline('Cleaning', 'regular'), 'Cleaning in progress');
+  // Unknown operations are still shown, split into words, never hidden.
+  assert.equal(headline('BottomPlateCleaning'), 'Bottom plate cleaning in progress');
+});

@@ -46,6 +46,7 @@ function showTab(name) {
   location.hash = name;
   if (name === 'jobs') loadJobs();
   if (name === 'history') loadHistory();
+  if (name === 'print') loadPrints();
 }
 $$('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 document.addEventListener('click', (e) => {
@@ -218,6 +219,7 @@ function printOptions() {
 function reportPrint(r) {
   if (r.ok) toast(`Sent as job ${r.jobId ?? ''} (${r.jobState ?? r.status}).`);
   else toast(`Printer refused the job: ${r.status}`, true);
+  loadPrints();
 }
 $('#printBtn').addEventListener('click', async () => {
   if (!chosenFile) return;
@@ -232,6 +234,7 @@ $('#printBtn').addEventListener('click', async () => {
     reportPrint(body);
   } catch (e) {
     toast(e.message, true);
+    loadPrints();
   } finally {
     btn.disabled = false;
     btn.textContent = 'Print';
@@ -247,6 +250,85 @@ async function printTestPage() {
 }
 $('#testPageBtn').addEventListener('click', printTestPage);
 $('#testPageQuick').addEventListener('click', printTestPage);
+
+// ---- recent prints
+const COLOR_LABEL = { color: 'Colour', monochrome: 'B&W' };
+const SIDES_LABEL = { 'one-sided': '1-sided', 'two-sided-long-edge': '2-sided', 'two-sided-short-edge': '2-sided (short)' };
+const QUALITY_LABEL = { 3: 'Draft', 4: 'Standard', 5: 'High' };
+let printList = [];
+let openPrint = null;
+
+function optionsSummary(o = {}) {
+  return [o.media && mediaLabel(o.media), o.copies > 1 && `${o.copies} copies`, COLOR_LABEL[o.colorMode], SIDES_LABEL[o.sides], QUALITY_LABEL[o.quality]].filter(Boolean).join(' · ');
+}
+
+async function loadPrints() {
+  try {
+    printList = await api('/api/prints');
+  } catch (e) {
+    $('#prints').innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+    return;
+  }
+  $('#printsCount').textContent = printList.length ? `${printList.length} of 30` : '';
+  $('#prints').innerHTML = printList.length
+    ? printList.map((p) => `
+      <button class="print-item" data-print="${p.id}" title="${esc(p.name)}">
+        <span class="thumb"><img src="/api/prints/${p.id}/thumb" alt="" loading="lazy"></span>
+        <span class="meta">
+          <b>${esc(p.name)}</b>
+          <span class="muted">${new Date(p.at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}${p.reprintOf ? ' · re-print' : ''}</span>
+          ${p.ok ? `<span class="muted">${esc(optionsSummary(p.options))}</span>` : `<span class="failed">Not printed: ${esc(p.status)}</span>`}
+        </span>
+      </button>`).join('')
+    : '<p class="muted">Nothing printed from this app yet.</p>';
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-print]');
+  if (!b) return;
+  openPrint = printList.find((p) => p.id === b.dataset.print);
+  if (!openPrint) return;
+  const o = openPrint.options ?? {};
+  $('#previewImg').src = `/api/prints/${openPrint.id}/image`;
+  $('#previewImg').alt = openPrint.name;
+  $('#previewName').textContent = openPrint.name;
+  $('#previewMeta').textContent = `${new Date(openPrint.at).toLocaleString()} · ${openPrint.ok ? `job ${openPrint.jobId ?? '?'}, ${openPrint.status}` : `not printed (${openPrint.status})`}`;
+  $('#rpCopies').value = o.copies ?? 1;
+  $('#rpColor').value = o.colorMode ?? 'color';
+  $('#rpSides').value = o.sides ?? 'one-sided';
+  $('#rpQuality').value = String(o.quality ?? 4);
+  $('#rpMedia').innerHTML = $('#media').innerHTML;
+  $('#rpMedia').value = o.media ?? 'iso_a4_210x297mm';
+  $('#printDialog').showModal();
+});
+
+$('#rpPrint').addEventListener('click', async () => {
+  const btn = $('#rpPrint');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const body = { copies: $('#rpCopies').value, colorMode: $('#rpColor').value, sides: $('#rpSides').value, quality: $('#rpQuality').value, media: $('#rpMedia').value };
+    const r = await api(`/api/prints/${openPrint.id}/reprint`, { method: 'POST', body: JSON.stringify(body) });
+    $('#printDialog').close();
+    reportPrint(r);
+  } catch (e) {
+    toast(e.message, true);
+    loadPrints();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Print again';
+  }
+});
+
+$('#rpDelete').addEventListener('click', async () => {
+  try {
+    await api(`/api/prints/${openPrint.id}`, { method: 'DELETE' });
+    $('#printDialog').close();
+    loadPrints();
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
 
 // ---- jobs
 function jobRow(j, active) {
@@ -312,6 +394,7 @@ $('#attrFilter').addEventListener('input', () => allAttrs && renderAttrs());
 // ---- history
 function describe(e) {
   if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}`;
+  if (e.type === 'action' && e.action === 'reprint') return `You re-printed "${e.file}" → ${e.result}`;
   if (e.type === 'action') return `You ran: ${state.maintenance[e.action]?.label ?? e.action}${e.file ? ` "${e.file}"` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
   if (e.type === 'diagnostics') return e.failing.length ? `Diagnostics: failing ${e.failing.join(', ')}` : 'Diagnostics: all checks passed';
   return JSON.stringify(e);
