@@ -3,7 +3,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ippRequest, groupAttrs, OP } from './ipp.js';
-import { getRemoteUiStatus, buildMaintenanceJob, sendRaw } from './canon.js';
+import { getRemoteUiStatus } from './canon.js';
+import { getMaintenanceStatus } from './maintenance.js';
 import { summarize } from './status.js';
 import { getChmpStatus } from './chmp.js';
 
@@ -20,7 +21,8 @@ export async function getStatus(host) {
     getRemoteUiStatus(host).catch((e) => ({ error: e.message })),
     getChmpStatus(host).catch((e) => ({ error: e.message })),
   ]);
-  const summary = summarize(attrs, remoteUi.error ? null : remoteUi);
+  const maintenance = await getMaintenanceStatus(host).catch(() => null);
+  const summary = summarize(attrs, remoteUi.error ? null : remoteUi, maintenance);
   if (!chmp.error) {
     summary.trays = chmp.print.trays;
     summary.supportCode = chmp.print.supportCode;
@@ -59,12 +61,6 @@ export async function cancelJob(host, jobId) {
 export async function identify(host) {
   const res = await ippRequest({ host }, OP.IDENTIFY_PRINTER, [['identify-actions', 'keyword', 'flash']]);
   return { status: res.status };
-}
-
-export async function runMaintenance(host, command) {
-  const job = buildMaintenanceJob(command);
-  const sent = await sendRaw(host, job);
-  return { ...sent, command };
 }
 
 /** Print a JPEG with standard IPP job attributes. Other image types are converted with macOS sips first. */

@@ -6,8 +6,8 @@ import { readFile, writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getStatus, getJobs, cancelJob, identify, runMaintenance, printJpeg, toJpeg, discover, getMacQueues, resumeMacQueue } from './printer.js';
-import { MAINTENANCE } from './canon.js';
+import { getStatus, getJobs, cancelJob, identify, printJpeg, toJpeg, discover, getMacQueues, resumeMacQueue } from './printer.js';
+import { MAINTENANCE, runMaintenance } from './maintenance.js';
 import { maintenanceBlockedReason } from './status.js';
 import { runDiagnostics } from './diagnostics.js';
 import { renderTestPageJpeg } from './testpage.js';
@@ -173,15 +173,14 @@ async function handle(req, res) {
       const host = requireHost();
       const body = await readJson(req);
       const id = maint[1];
-      const command = id === 'raw' ? String(body.command ?? '') : MAINTENANCE[id]?.command;
-      if (!command) return send(res, 404, { error: `Unknown maintenance action ${id}` });
+      if (!MAINTENANCE[id]) return send(res, 404, { error: `Unknown maintenance action ${id}` });
       if (!body.force) {
         const { summary } = await getStatus(host);
         const blocked = maintenanceBlockedReason(summary);
         if (blocked) return send(res, 409, { error: blocked, blocked: true });
       }
-      const r = await runMaintenance(host, command);
-      await history.add({ type: 'action', action: id, command, forced: Boolean(body.force) });
+      const r = await runMaintenance(host, id, { paper: body.paper === 'letter' ? 'letter' : 'a4' });
+      await history.add({ type: 'action', action: id, forced: Boolean(body.force) });
       return send(res, 200, r);
     }
 

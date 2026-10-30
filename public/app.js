@@ -154,23 +154,21 @@ function renderMaintCards() {
   const blocked = state.status?.summary?.maintenanceBlocked;
   $('#maintCards').innerHTML = Object.entries(state.maintenance).map(([id, m]) => `
     <article class="card maint">
-      <h2>${esc(m.label)} ${m.experimental ? '<span class="tag">May not be supported</span>' : ''}</h2>
+      <h2>${esc(m.label)} ${m.heavy ? '<span class="tag">Uses a lot of ink</span>' : ''}</h2>
       <p>${esc(m.description)}</p>
-      ${m.paper ? '<p class="small">Needs plain A4 or Letter paper in the cassette.</p>' : ''}
+      <p class="small">${m.sheets ? `Prints ${m.sheets} sheet${m.sheets > 1 ? 's' : ''} of plain paper from the cassette.` : 'No paper needed.'}</p>
       <button data-maint="${esc(id)}" ${blocked ? `title="${esc(blocked)}"` : ''}>${esc(m.label)}</button>
     </article>`).join('');
 }
 
-async function runMaint(id, command) {
+async function runMaint(id) {
   const m = state.maintenance[id];
-  const label = m?.label ?? `Raw command ${command}`;
-  const msg = id === 'cleaning'
-    ? 'Cleaning uses ink and takes about a minute. Do not turn the printer off while it runs.'
-    : id === 'raw'
-      ? `Send "${command}" to the printer? Only send commands you know this printer supports.`
-      : 'This prints one page. Make sure plain paper is loaded.';
-  if (!(await confirmDialog(label, msg, id === 'raw' ? 'Send' : 'Start', id === 'raw'))) return;
-  const send = (force) => api(`/api/maintenance/${id}`, { method: 'POST', body: JSON.stringify({ command, force }) });
+  const label = m.label;
+  const msg = m.op === 'Cleaning'
+    ? `${m.description} Do not turn the printer off while it runs.`
+    : `Prints ${m.sheets} sheet${m.sheets > 1 ? 's' : ''}. Make sure plain A4 paper is in the cassette.`;
+  if (!(await confirmDialog(label, msg, 'Start', Boolean(m.heavy)))) return;
+  const send = (force) => api(`/api/maintenance/${id}`, { method: 'POST', body: JSON.stringify({ force }) });
   try {
     await send(false);
     toast(`${label}: sent to the printer.`);
@@ -184,15 +182,12 @@ async function runMaint(id, command) {
       }
     } else if (!e.body?.blocked) toast(e.message, true);
   }
-  setTimeout(refresh, 2500);
+  // Follow the job closely while it runs.
+  for (const ms of [2000, 5000, 10000, 20000, 40000, 70000]) setTimeout(refresh, ms);
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-maint]');
   if (b) runMaint(b.dataset.maint);
-});
-$('#rawSend').addEventListener('click', () => {
-  const cmd = $('#rawCmd').value.trim();
-  if (cmd) runMaint('raw', cmd);
 });
 
 $('#identifyBtn').addEventListener('click', async () => {
@@ -317,7 +312,7 @@ $('#attrFilter').addEventListener('input', () => allAttrs && renderAttrs());
 // ---- history
 function describe(e) {
   if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}`;
-  if (e.type === 'action') return `You ran: ${e.action}${e.file ? ` "${e.file}"` : ''}${e.command && e.action === 'raw' ? ` ${e.command}` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
+  if (e.type === 'action') return `You ran: ${state.maintenance[e.action]?.label ?? e.action}${e.file ? ` "${e.file}"` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
   if (e.type === 'diagnostics') return e.failing.length ? `Diagnostics: failing ${e.failing.join(', ')}` : 'Diagnostics: all checks passed';
   return JSON.stringify(e);
 }

@@ -56,7 +56,7 @@ export async function runDiagnostics(host) {
     [80, 'Web server (Remote UI, HTTP)', true],
     [443, 'Web server (Remote UI, HTTPS)', false],
     [631, 'IPP / AirPrint', true],
-    [9100, 'Raw printing (used for maintenance commands)', true],
+    [9100, 'Raw printing (JetDirect)', false],
   ];
   const portResults = await Promise.all(ports.map(([p]) => tcpCheck(host, p)));
   ports.forEach(([port, title, required], i) => {

@@ -59,3 +59,12 @@ test('maintenance is blocked while the printer is busy or stopped, allowed when 
   assert.equal(maintenanceBlockedReason(summarize(idle, { busyState: '0', busyStateText: 'Ready to print' })), null);
   assert.equal(maintenanceBlockedReason(summarize(idle, null)), null);
 });
+
+test('a running maintenance job shows as busy with its name and blocks further maintenance', async () => {
+  const { maintenanceBlockedReason } = await import('../src/status.js');
+  const idle = { ...fixtureAttrs, 'printer-state': 3, 'printer-state-reasons': 'none', 'printer-is-accepting-jobs': true };
+  const s = summarize(idle, { busyState: '0', busyStateText: 'Ready to print' }, { running: true, operation: 'Cleaning', type: 'deep', progress: 'processing' });
+  assert.equal(s.health, 'busy');
+  assert.equal(s.headline, 'Deep cleaning in progress');
+  assert.match(maintenanceBlockedReason(s), /Deep cleaning in progress/);
+});

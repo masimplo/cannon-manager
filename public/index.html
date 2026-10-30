@@ -77,19 +77,12 @@
       <ol class="steps">
         <li><b>Print a nozzle check.</b> Look at the pattern: every line should be complete, with no gaps.</li>
         <li><b>If lines are missing, run a cleaning</b> and print another nozzle check.</li>
-        <li><b>Still missing after two cleanings?</b> Turn the printer off for at least 24 hours, then check again. If it still fails, run a <i>deep cleaning</i> from the printer's own panel (Setup → Maintenance → Deep Cleaning); it uses much more ink, so use it sparingly.</li>
-        <li>If straight lines look jagged or colours are offset, run a <b>print head alignment</b>.</li>
+        <li><b>Still missing after two cleanings?</b> Turn the printer off for at least 24 hours, then check again. If it still fails, run a <b>deep cleaning</b>; it uses much more ink, so use it sparingly.</li>
+        <li>If straight lines look jagged or colours are offset, run an <b>automatic head alignment</b>.</li>
       </ol>
+      <p class="small muted">Test prints use plain paper from the <b>cassette</b> (A4 or Letter).</p>
     </article>
     <div class="grid three" id="maintCards"></div>
-    <details class="card">
-      <summary><h2 class="inline">Advanced: send a raw BJL command</h2></summary>
-      <p class="muted">Sends one line inside a Canon BJL control block over port 9100. Only use commands you know your printer supports; unknown commands are normally ignored, but there is no guarantee.</p>
-      <div class="row">
-        <input id="rawCmd" placeholder="@TestPrint=NozzleCheck" spellcheck="false" autocomplete="off">
-        <button id="rawSend" class="danger">Send</button>
-      </div>
-    </details>
   </section>
 
   <section data-panel="print" hidden>

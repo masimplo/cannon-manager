@@ -49,41 +49,84 @@ function parseResponse(buf) {
   return { status, body: rest.subarray(0, len), length: headEnd + 4 + len };
 }
 
-/** Send one IVEC command and read its reply over a single keep-alive connection. */
-export function chmpCommand(host, xml, { timeoutMs = 10000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const sock = net.connect({ host, port: 80 });
-    let buf = Buffer.alloc(0);
-    let phase = 'post';
-    const fail = (e) => {
-      sock.destroy();
-      reject(e);
-    };
-    sock.setTimeout(timeoutMs, () => fail(new Error(`CHMP timed out after ${timeoutMs} ms`)));
-    sock.on('error', fail);
-    const headers = (method, len) =>
-      `${method} ${CONTROL} HTTP/1.1\r\nHost: ${host}\r\nX-CHMP-Version: 1.1.0\r\nConnection: Keep-Alive\r\n` +
+/**
+ * One keep-alive connection to the CHMP control channel. The printer ties a job to the
+ * connection that started it: StartJob on one connection and TestPrint on another fails
+ * with response_detail NotStart (verified on the G5040), so a maintenance job must use
+ * one session from StartJob to EndJob.
+ */
+export class ChmpSession {
+  constructor(host, { timeoutMs = 10000 } = {}) {
+    this.host = host;
+    this.timeoutMs = timeoutMs;
+    this.sock = null;
+    this.buf = Buffer.alloc(0);
+    this.waiter = null;
+  }
+
+  open() {
+    return new Promise((resolve, reject) => {
+      const sock = net.connect({ host: this.host, port: 80 });
+      sock.once('connect', () => {
+        this.sock = sock;
+        resolve(this);
+      });
+      sock.on('error', (e) => (this.waiter ? this.waiter.reject(e) : reject(e)));
+      sock.on('close', () => this.waiter?.reject(new Error('CHMP connection closed by the printer')));
+      sock.on('data', (d) => {
+        this.buf = Buffer.concat([this.buf, d]);
+        const res = parseResponse(this.buf);
+        if (!res || !this.waiter) return;
+        this.buf = this.buf.subarray(res.length);
+        const w = this.waiter;
+        this.waiter = null;
+        w.resolve(res);
+      });
+    });
+  }
+
+  #exchange(raw) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.waiter = null;
+        reject(new Error(`CHMP timed out after ${this.timeoutMs} ms`));
+      }, this.timeoutMs);
+      this.waiter = {
+        resolve: (r) => (clearTimeout(timer), resolve(r)),
+        reject: (e) => (clearTimeout(timer), (this.waiter = null), reject(e)),
+      };
+      this.sock.write(raw);
+    });
+  }
+
+  #headers(method, len) {
+    return `${method} ${CONTROL} HTTP/1.1\r\nHost: ${this.host}\r\nX-CHMP-Version: 1.3.0\r\nConnection: Keep-Alive\r\n` +
       (len !== undefined ? `Content-Type: application/octet-stream\r\nContent-Length: ${len}\r\n` : '') + '\r\n';
-    sock.on('connect', () => {
-      const body = Buffer.from(xml, 'utf8');
-      sock.write(Buffer.concat([Buffer.from(headers('POST', body.length), 'latin1'), body]));
-    });
-    sock.on('data', (d) => {
-      buf = Buffer.concat([buf, d]);
-      const res = parseResponse(buf);
-      if (!res) return;
-      buf = buf.subarray(res.length);
-      if (phase === 'post') {
-        if (res.status !== 200) return fail(new Error(`CHMP command rejected with HTTP ${res.status}`));
-        phase = 'get';
-        sock.write(headers('GET'));
-      } else {
-        sock.end();
-        if (res.status !== 200) return reject(new Error(`CHMP reply failed with HTTP ${res.status}`));
-        resolve(res.body.toString('utf8'));
-      }
-    });
-  });
+  }
+
+  /** POST an IVEC command, then GET its reply on the same connection. Resolves with the reply XML. */
+  async command(xml) {
+    const body = Buffer.from(xml, 'utf8');
+    const posted = await this.#exchange(Buffer.concat([Buffer.from(this.#headers('POST', body.length), 'latin1'), body]));
+    if (posted.status !== 200) throw new Error(`CHMP command rejected with HTTP ${posted.status}`);
+    const reply = await this.#exchange(Buffer.from(this.#headers('GET'), 'latin1'));
+    if (reply.status !== 200) throw new Error(`CHMP reply failed with HTTP ${reply.status}`);
+    return reply.body.toString('utf8');
+  }
+
+  close() {
+    this.sock?.end();
+  }
+}
+
+/** Send one IVEC command on a fresh connection and return the reply XML. */
+export async function chmpCommand(host, xml, opts) {
+  const session = await new ChmpSession(host, opts).open();
+  try {
+    return await session.command(xml);
+  } finally {
+    session.close();
+  }
 }
 
 const tag = (xml, name) => {

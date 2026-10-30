@@ -1,6 +1,14 @@
 // Turns raw IPP printer attributes (plus the Remote UI status, when available)
 // into a plain-English summary for the dashboard.
 
+const MAINT_NAMES = {
+  'TestPrint:nozzle_check': 'Nozzle check',
+  'TestPrint:regi_check': 'Alignment check print',
+  'TestPrint:auto_registration': 'Automatic head alignment',
+  'Cleaning:regular': 'Cleaning',
+  'Cleaning:deep': 'Deep cleaning',
+};
+
 const STATES = { 3: 'idle', 4: 'processing', 5: 'stopped' };
 
 // PWG 5100.x / RFC 8011 printer-state-reasons, phrased for a person standing at the printer.
@@ -46,7 +54,7 @@ function prettyMarkerName(name) {
   return String(name).replace(/\s*\(/, ' (');
 }
 
-export function summarize(attrs, remoteUi) {
+export function summarize(attrs, remoteUi, maintenance = null) {
   const stateCode = attrs['printer-state'];
   const state = STATES[stateCode] ?? `unknown (${stateCode})`;
   const acceptingJobs = attrs['printer-is-accepting-jobs'] !== false;
@@ -86,7 +94,8 @@ export function summarize(attrs, remoteUi) {
   if (state === 'processing' && health === 'ok') health = 'busy';
   if (state === 'stopped' || issues.some((i) => i.severity === 'error')) health = 'error';
 
-  let headline = remoteUi?.busyStateText;
+  if (maintenance?.running && health !== 'error') health = 'busy';
+  let headline = maintenance?.running ? `${MAINT_NAMES[`${maintenance.operation}:${maintenance.type}`] ?? maintenance.operation} in progress` : remoteUi?.busyStateText;
   if (!headline) {
     if (state === 'idle') headline = health === 'ok' ? 'Ready to print' : 'Idle, needs attention';
     else if (state === 'processing') headline = 'Printing or busy';
@@ -108,11 +117,13 @@ export function summarize(attrs, remoteUi) {
     deviceId: attrs['printer-device-id'],
     uuid: attrs['printer-uuid'],
     remoteUi: remoteUi ?? null,
+    maintenance: maintenance ?? null,
   };
 }
 
 /** Why maintenance must not be sent right now, or null when the printer is ready for it. */
 export function maintenanceBlockedReason(summary) {
+  if (summary.maintenance?.running) return `The printer is busy: ${summary.headline}`;
   if (summary.state === 'stopped') return 'The printer is stopped. Clear the error on the printer first.';
   if (summary.remoteUi?.busyState && summary.remoteUi.busyState !== '0') return `The printer is busy: ${summary.remoteUi.busyStateText}`;
   if (summary.state === 'processing') return `The printer is busy: ${summary.headline}`;
