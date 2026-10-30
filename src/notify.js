@@ -1,8 +1,23 @@
-// macOS notifications, sent with osascript (no dependencies). They appear as "Script Editor":
-// macOS attributes osascript's `display notification` to it, so Script Editor must be allowed in
-// System Settings → Notifications, or they are dropped silently (osascript still exits 0).
+// macOS notifications. Sent through ~/Applications/G5040 Manager.app (macos/main.swift, built by
+// scripts/build-mac-app.sh), which posts them under its own name. osascript is only a fallback:
+// on macOS 26 its notifications (attributed to Script Editor) are dropped silently.
 
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+export const MAC_APP = join(homedir(), 'Applications', 'G5040 Manager.app');
+
+export function macAppSend(title, message) {
+  return new Promise((resolve) => {
+    execFile('/usr/bin/open', ['-n', '-g', '-a', MAC_APP, '--args', 'notify', String(title), String(message)], { timeout: 15000 }, (err) => resolve(err ? (err.code ?? 1) : 0));
+  });
+}
+
+export function defaultSend(title, message) {
+  return existsSync(MAC_APP) ? macAppSend(title, message) : osascriptSend(title, message);
+}
 
 export function appleScriptString(s) {
   return `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -63,7 +78,7 @@ export function statusEvents(prev, next, { unreachableStreak = 0, wasOfflineNoti
 }
 
 export class Notifier {
-  constructor({ send = osascriptSend, now = () => new Date(), prefs = {}, log = () => {} } = {}) {
+  constructor({ send = defaultSend, now = () => new Date(), prefs = {}, log = () => {} } = {}) {
     this.send = send;
     this.now = now;
     this.log = log;

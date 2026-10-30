@@ -594,7 +594,7 @@ document.addEventListener('change', (e) => {
 $('#nTest').addEventListener('click', async () => {
   try {
     const r = await api('/api/notifications/test', { method: 'POST' });
-    toast(r.exitCode === 0 ? 'Sent. If nothing appeared, allow notifications for Script Editor in System Settings → Notifications.' : `osascript failed (exit ${r.exitCode}).`, r.exitCode !== 0);
+    toast(r.exitCode === 0 ? 'Sent. If nothing appeared, allow G5040 Manager in System Settings → Notifications.' : `Sending failed (exit ${r.exitCode}).`, r.exitCode !== 0);
   } catch (e) {
     toast(e.message, true);
   }
