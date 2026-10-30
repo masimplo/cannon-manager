@@ -20,6 +20,7 @@ let proxy;
 let received; // requests the fake printer got
 let printerBehaviour;
 let recorded; // what the proxy handed to the print history
+let waiting; // jobs reported as stuck waiting for the printer
 
 function fakePrinter() {
   return new Promise((resolve) => {
@@ -61,6 +62,7 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'ipp-proxy-'));
   received = [];
   recorded = [];
+  waiting = [];
   printerBehaviour = { printJob: [], jobStates: [] };
   printer = await fakePrinter();
   proxy = await startIppProxy({
@@ -71,6 +73,8 @@ beforeEach(async () => {
     retryDelayMs: 20,
     pollMs: 10,
     onJobForwarded: async (job) => recorded.push(job),
+    onJobWaiting: (job) => waiting.push(job.name),
+    waitNotifyMs: 30,
     managerUrl: 'http://127.0.0.1:4280/',
   });
 });
@@ -239,4 +243,17 @@ test('the printer\'s web page and supply page lead to the manager app', async ()
   res.resume();
   assert.equal(res.statusCode, 302);
   assert.equal(res.headers.location, 'http://127.0.0.1:4280/');
+});
+
+test('a job stuck waiting for a busy printer is reported once, then prints when the printer frees up', async () => {
+  printerBehaviour.printJob = [0x0507, 0x0507, 0x0507, 0x0507];
+  const { jobId } = await createAndSend();
+  await waitFor(async () => (await jobState(jobId))['job-state'] === 9);
+  assert.deepEqual(waiting, ['Quarterly report'], 'reported exactly once');
+});
+
+test('a job that goes through quickly is never reported as waiting', async () => {
+  const { jobId } = await createAndSend();
+  await waitFor(async () => (await jobState(jobId))['job-state'] === 9);
+  assert.deepEqual(waiting, []);
 });

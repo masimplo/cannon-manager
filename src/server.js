@@ -496,6 +496,12 @@ try {
     spoolDir: join(DATA, 'spool'),
     managerUrl: `http://127.0.0.1:${PORT}/`,
     onJobForwarded: recordCapturedJob,
+    onJobWaiting: (job) => notifier.handle({
+      category: 'job',
+      key: `waiting:${job.name}:${Math.floor(Date.now() / 60000)}`,
+      title: 'Print job waiting',
+      message: `"${job.name}" has waited ${Math.round(job.waitingMs / 60000)} minutes: the printer is busy or unreachable. It will print when the printer is back.`,
+    }),
     log: (m) => console.log(`[capture] ${m}`),
   });
   console.log(`Capture printer on ${proxy.uri}`);

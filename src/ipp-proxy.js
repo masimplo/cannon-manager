@@ -73,6 +73,8 @@ export async function startIppProxy({
   printerName = 'Canon G5040 (via Manager)',
   managerUrl = 'http://127.0.0.1:4280/',
   onJobForwarded = async () => {},
+  onJobWaiting = () => {}, // called once when a job has waited waitNotifyMs for a busy/unreachable printer
+  waitNotifyMs = 10 * 60 * 1000,
   log = () => {},
 }) {
   await mkdir(spoolDir, { recursive: true });
@@ -191,6 +193,14 @@ export async function startIppProxy({
       }
       if (RETRYABLE.has(status) && Date.now() - started < maxRetryMs) {
         setState(job, JOB.PROCESSING, ['printer-busy'], 'Waiting for the printer');
+        if (!job.waitReported && Date.now() - started >= waitNotifyMs) {
+          job.waitReported = true;
+          try {
+            onJobWaiting({ name: job.name, user: job.user, waitingMs: Date.now() - started });
+          } catch (e) {
+            log(`waiting callback failed: ${e.message}`);
+          }
+        }
         await new Promise((r) => setTimeout(r, retryDelayMs));
         continue;
       }
