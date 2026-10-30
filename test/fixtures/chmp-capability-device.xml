@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<cmd xmlns:ivec="http://www.canon.com/ns/cmd/2008/07/common/"
+xmlns:vcn="http://www.canon.com/ns/cmd/2008/07/canon/">
+<ivec:contents>
+<ivec:operation>GetCapabilityResponse</ivec:operation>
+<ivec:param_set servicetype="device">
+<ivec:response>OK</ivec:response>
+<ivec:response_detail/>
+<ivec:manufacturer>CANON</ivec:manufacturer>
+<ivec:model>G5000 series</ivec:model>
+<ivec:serialnumber>000001</ivec:serialnumber>
+<ivec:service>print,maintenance,pli</ivec:service>
+<ivec:product_serialnumber>XXXX00000</ivec:product_serialnumber>
+<ivec:firmver>1.060</ivec:firmver>
+<vcn:pdr>C</vcn:pdr>
+<vcn:hri>4</vcn:hri>
+<ivec:function_info>
+<vcn:remote_ui>
+<vcn:backtoapplication/>
+<vcn:guide>
+<vcn:item>certification</vcn:item>
+</vcn:guide>
+<vcn:pagelink page="maintenance"><![CDATA[index.html?page=PAGE_UTIL]]></vcn:pagelink>
+<vcn:pagelink page="ijcpcregistration"><![CDATA[index.html?page=PAGE_IJCPC]]></vcn:pagelink>
+<vcn:pagelink page="downloadcertificate"><![CDATA[index.html?page=PAGE_CERT]]></vcn:pagelink>
+</vcn:remote_ui>
+<vcn:bininfo_settable/>
+<vcn:wireless_connect_button/>
+</ivec:function_info>
+<ivec:datetime/>
+<ivec:autopoweron>ON,OFF</ivec:autopoweron>
+<ivec:autopoweroff>
+<ivec:mode>ON,OFF</ivec:mode>
+<ivec:time>15,30,60,120,240</ivec:time>
+</ivec:autopoweroff>
+<ivec:silentmode>
+<ivec:mode>ON,OFF,time</ivec:mode>
+<ivec:starttime/>
+<ivec:endtime/>
+</ivec:silentmode>
+<ivec:papergap>auto,wide</ivec:papergap>
+<ivec:drylevel>1,2,3,4,5</ivec:drylevel>
+<ivec:setregistration id="1">
+<ivec:item sign="A">-5:5</ivec:item>
+<ivec:item sign="B">-5:5</ivec:item>
+<ivec:item sign="C">-5:5</ivec:item>
+<ivec:item sign="D">-5:5</ivec:item>
+<ivec:item sign="E">-5:5</ivec:item>
+<ivec:item sign="F">-5:5</ivec:item>
+<ivec:item sign="G">-5:5</ivec:item>
+<ivec:item sign="H">-5:5</ivec:item>
+<ivec:item sign="I">-5:5</ivec:item>
+<ivec:item sign="J">-5:5</ivec:item>
+</ivec:setregistration>
+<ivec:setregistration id="2">
+<ivec:item sign="K">-5:5</ivec:item>
+<ivec:item sign="L">-5:5</ivec:item>
+<ivec:item sign="M">-5:5</ivec:item>
+</ivec:setregistration>
+<ivec:setregistration id="3">
+<ivec:item sign="N">-4:4</ivec:item>
+<ivec:item sign="O">-4:4</ivec:item>
+<ivec:item sign="P">-4:4</ivec:item>
+<ivec:item sign="Q">-2:2</ivec:item>
+<ivec:item sign="R">-2:2</ivec:item>
+<ivec:item sign="S">-2:2</ivec:item>
+<ivec:item sign="T">-2:2</ivec:item>
+</ivec:setregistration>
+<vcn:ResetCounter>
+<vcn:type id="ink">
+<vcn:resetink>all,BK,C,M,Y</vcn:resetink>
+</vcn:type>
+</vcn:ResetCounter>
+<ivec:ink_detect>ON,OFF</ivec:ink_detect>
+<vcn:webservice_agreement>unknown,agree,disagree</vcn:webservice_agreement>
+<vcn:questionnaire_state>notanswer,answer,reject</vcn:questionnaire_state>
+</ivec:param_set>
+</ivec:contents>
+</cmd>

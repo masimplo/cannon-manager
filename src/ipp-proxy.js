@@ -71,6 +71,7 @@ export async function startIppProxy({
   maxRetryMs = 24 * 60 * 60 * 1000, // a printer that is off overnight must not lose captured jobs
   pollMs = 3000,
   printerName = 'Canon G5040 (via Manager)',
+  managerUrl = 'http://127.0.0.1:4280/',
   onJobForwarded = async () => {},
   log = () => {},
 }) {
@@ -231,6 +232,9 @@ export async function startIppProxy({
           case 'printer-info': return Buffer.from(printerName);
           case 'printer-dns-sd-name': return Buffer.from(printerName);
           case 'compression-supported': return v.index === 0 ? Buffer.from('none') : null;
+          // macOS's "printer web page" and supply buttons open the manager, not the printer's Remote UI.
+          case 'printer-more-info': return Buffer.from(managerUrl);
+          case 'printer-supply-info-uri': return Buffer.from(`${managerUrl}#overview`);
           default: return undefined;
         }
       })
@@ -349,8 +353,13 @@ export async function startIppProxy({
 
   const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST' || !(req.headers['content-type'] ?? '').startsWith('application/ipp')) {
-      res.writeHead(req.method === 'GET' ? 200 : 405, { 'Content-Type': 'text/plain' });
-      return res.end(`${printerName}: IPP endpoint for macOS printing. Open the manager at http://localhost:4280\n`);
+      // A browser opening this printer's address ("Show Printer Web Page") lands in the manager.
+      if (req.method === 'GET') {
+        res.writeHead(302, { Location: managerUrl });
+        return res.end();
+      }
+      res.writeHead(405, { 'Content-Type': 'text/plain' });
+      return res.end('IPP endpoint: POST application/ipp\n');
     }
     const spoolPath = join(spoolDir, `${randomUUID()}.ipp`);
     const ipp = { spoolPath, keepSpool: false };

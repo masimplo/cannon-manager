@@ -8,6 +8,7 @@ import { getRemoteUiStatus } from './canon.js';
 import { getMaintenanceStatus } from './maintenance.js';
 import { summarize } from './status.js';
 import { getChmpStatus } from './chmp.js';
+import { lookupSupportCode } from './support-codes.js';
 
 const run = promisify(execFile);
 
@@ -44,7 +45,11 @@ export async function getStatus(host) {
     summary.totalSheets = chmp.device.totalSheets;
     summary.headReplacements = chmp.device.headReplacements;
     if (chmp.print.supportCode) {
-      summary.issues.unshift({ severity: 'error', text: `Printer support code ${chmp.print.supportCode}${chmp.print.statusDetail ? ` (${chmp.print.statusDetail})` : ''}. Look this code up in Canon's online manual for the G5000 series.`, code: 'support-code' });
+      const info = lookupSupportCode(chmp.print.supportCode);
+      summary.supportInfo = info;
+      const what = info.category ?? (chmp.print.statusDetail || 'see Canon\'s page');
+      const who = info.severity === 'service' ? ' Canon service is needed.' : '';
+      summary.issues.unshift({ severity: 'error', text: `Support code ${chmp.print.supportCode}: ${what}.${who}`, code: 'support-code', url: info.url });
       summary.health = 'error';
     }
   }

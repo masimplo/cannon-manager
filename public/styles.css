@@ -174,3 +174,12 @@ dialog.wide form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(2
 .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
 .badge.mac { color: var(--accent); border-color: var(--accent); }
 .print-item .thumb .placeholder { color: var(--muted); font-size: 12px; }
+
+.settings-list { display: grid; gap: 10px; }
+.setting { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.setting:last-child { border-bottom: 0; }
+.setting .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.setting .hint { grid-column: 1 / -1; margin: -4px 0 0; }
+label.check { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+.checks-list { display: grid; gap: 6px; margin-bottom: 12px; }
+@media (max-width: 600px) { .setting { grid-template-columns: 1fr; } }

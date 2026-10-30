@@ -71,6 +71,7 @@ beforeEach(async () => {
     retryDelayMs: 20,
     pollMs: 10,
     onJobForwarded: async (job) => recorded.push(job),
+    managerUrl: 'http://127.0.0.1:4280/',
   });
 });
 
@@ -226,4 +227,16 @@ test('Get-Jobs lists the proxy\'s own jobs and Cancel-Job cancels one that has n
   assert.equal(cancel.statusCode, 0);
   assert.equal((await jobState(jobId))['job-state'], 7);
   assert.equal(received.filter((r) => r.msg.operation === OP.PRINT_JOB).length, 0);
+});
+
+test('the printer\'s web page and supply page lead to the manager app', async () => {
+  const r = await post(encodeRequest(OP.GET_PRINTER_ATTRIBUTES, 6, [['printer-uri', 'uri', PROXY_URI()]]));
+  const p = groupAttrs(r, 'printer');
+  assert.equal(p['printer-more-info'], 'http://127.0.0.1:4280/');
+  assert.equal(p['printer-supply-info-uri'], 'http://127.0.0.1:4280/#overview');
+  // Opening the capture printer's address in a browser ("Show Printer Web Page") redirects to the app.
+  const res = await new Promise((resolve) => http.get({ host: '127.0.0.1', port: proxy.port, path: '/' }, resolve));
+  res.resume();
+  assert.equal(res.statusCode, 302);
+  assert.equal(res.headers.location, 'http://127.0.0.1:4280/');
 });

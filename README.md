@@ -41,6 +41,10 @@ Re-printing a captured job replays the stored URF pages with the job's original 
 - **Overview**: state in plain English, ink tanks, paper per tray, sheets fed, print head replacement counts, Canon support codes, and this Mac's CUPS queue (with a resume button, since macOS pauses the queue when a job fails).
 - **Maintenance**: nozzle check, cleaning, deep cleaning, alignment check print, automatic head alignment. Refused while the printer is busy.
 - **Print**: images and single-page PDFs (converted to JPEG with `sips`), a colour test page, and **Recent prints**: the last 30 prints from the app or the Mac, with preview and re-print.
+- **Settings**: the printer's own settings (quiet mode and schedule, auto power on/off, ink drying wait, paper abrasion), read with IVEC `GetConfiguration` and written with `SetConfiguration` inside StartJob/EndJob (servicetype `device`), each change read back and logged. Alignment values and ink detection are never written. Also: Mac print capture status, notifications and keep-alive.
+- **Keep-alive nozzle check**: after 7 idle days (by the printer's own sheet counter, or any maintenance), between 09:00 and 21:00, only when the printer is ready and the cassette has plain paper. Needs Auto power on enabled if Auto power off is on, otherwise the printer is off and unreachable.
+- **Notifications** via `osascript` (they appear as "Script Editor"; allow it in System Settings → Notifications): support codes, ink low/empty, offline/online, jobs, keep-alive, failed settings changes. Quiet hours (errors still show), per-category switches, mute.
+- **Support codes**: `src/support-codes.json` maps every G5000 code to a short category in our own words and a link to Canon's page (Canon's text may not be reproduced).
 - **Jobs**, **Diagnostics** (ports, IPP, Remote UI assets, HTTPS certificate, printer clock, macOS queue), **History** (status changes, ink over time, actions).
 
 ## How it talks to the printer
@@ -58,4 +62,4 @@ The older BJL maintenance commands (`@TestPrint=NozzleCheck` over port 9100 or I
 
 The printer reports which maintenance types it supports via `GetCapability` (servicetype `maintenance`): Cleaning `regular`, `deep`, `choke`; TestPrint `nozzle_check`, `auto_registration`, `manual_registration`, `regi_check`, all from `inputbin_p2` (cassette) on A4/Letter plain paper. `choke` (system flush) and manual alignment are deliberately not offered.
 
-Verified on hardware (fw 1.060): nozzle check. Cleaning, deep cleaning and alignment use the same job shape and are listed by the printer's capability, but have not been run from this app yet.
+Verified on hardware (fw 1.060): nozzle check; `SetConfiguration` (a no-op drying-level write, then Auto power on OFF → ON, both confirmed by read-back). Ink counter reset after a refill is a `VendorCmd` `ResetCounter` (servicetype device), verified by fixma-pixma on a G7020; not built yet. Cleaning, deep cleaning and alignment use the same job shape and are listed by the printer's capability, but have not been run from this app yet.

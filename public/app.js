@@ -47,6 +47,11 @@ function showTab(name) {
   if (name === 'jobs') loadJobs();
   if (name === 'history') loadHistory();
   if (name === 'print') loadPrints();
+  if (name === 'settings') {
+    loadDeviceSettings();
+    loadKeepAlive();
+    loadNotifications();
+  }
 }
 $$('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 // Back/forward and edited URLs switch tabs too.
@@ -407,6 +412,9 @@ $('#attrFilter').addEventListener('input', () => allAttrs && renderAttrs());
 // ---- history
 function describe(e) {
   if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}${e.raw ? ` · ${rawSignals(e.raw)}` : ''}`;
+  if (e.type === 'action' && e.action === 'set-config') return e.error ? `Setting "${e.key}" not changed: ${e.error}` : `Changed ${e.key}: ${JSON.stringify(e.from)} → ${JSON.stringify(e.to)}${e.verified ? ' (confirmed)' : ' (printer reports a different value)'}`;
+  if (e.type === 'action' && e.action === 'keepalive') return `Keep-alive nozzle check: ${e.result}${e.reason ? ` (${e.reason})` : ''}`;
+  if (e.type === 'notification') return `Notification: ${e.title}${e.exitCode ? ` (failed, exit ${e.exitCode})` : ''}`;
   if (e.type === 'action' && e.action === 'mac-print') return `Printed from the Mac: "${e.file}" → ${e.result}`;
   if (e.type === 'action' && e.action === 'reprint') return `You re-printed "${e.file}" → ${e.result}`;
   if (e.type === 'action') return `You ran: ${state.maintenance[e.action]?.label ?? e.action}${e.file ? ` "${e.file}"` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
@@ -459,6 +467,139 @@ function drawInkChart(samples) {
 }
 
 // ---- settings
+// ---- printer settings
+const SETTING_HELP = {
+  quietMode: 'Makes the printer quieter (and slower). "Scheduled" turns it on between the two times.',
+  autoPowerOn: 'Turns the printer on when a print job or keep-alive check arrives. Needed for keep-alive while auto power off is on.',
+  autoPowerOff: 'Turns the printer off after this long without use. Saves power and caps the print head.',
+  dryLevel: 'How long the printer waits for ink to dry before the next page. Raise it if pages smear.',
+  paperGap: '"Wide" raises the print head to stop rubbing on thick paper or envelopes.',
+};
+let deviceCap = null;
+function settingControls(key, value, cap) {
+  const opt = (v, label, cur) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(label)}</option>`;
+  switch (key) {
+    case 'quietMode':
+      return `<select data-part="mode">${cap.quietMode.mode.map((m) => opt(m, { ON: 'On', OFF: 'Off', time: 'Scheduled' }[m] ?? m, value.mode)).join('')}</select>
+        <input data-part="start" size="5" value="${esc(value.start ?? '2100')}" title="Start (HHMM)"> – <input data-part="end" size="5" value="${esc(value.end ?? '0700')}" title="End (HHMM)">`;
+    case 'autoPowerOn':
+      return `<select data-part="value">${cap.autoPowerOn.map((m) => opt(m, m === 'ON' ? 'On' : 'Off', value)).join('')}</select>`;
+    case 'autoPowerOff':
+      return `<select data-part="mode">${cap.autoPowerOff.mode.map((m) => opt(m, m === 'ON' ? 'On' : 'Off', value.mode)).join('')}</select>
+        after <select data-part="time">${cap.autoPowerOff.time.map((t) => opt(t, `${t} min`, value.time)).join('')}</select>`;
+    case 'dryLevel':
+      return `<select data-part="value">${cap.dryLevel.map((n) => opt(n, `${n}${n === 1 ? ' (shortest)' : n === cap.dryLevel.at(-1) ? ' (longest)' : ''}`, value)).join('')}</select>`;
+    case 'paperGap':
+      return `<select data-part="value">${cap.paperGap.map((m) => opt(m, m === 'auto' ? 'Auto' : 'Wide', value)).join('')}</select>`;
+    default:
+      return '';
+  }
+}
+function readSetting(row) {
+  const part = (p) => row.querySelector(`[data-part="${p}"]`)?.value;
+  switch (row.dataset.key) {
+    case 'quietMode': return part('mode') === 'time' ? { mode: 'time', start: part('start'), end: part('end') } : { mode: part('mode') };
+    case 'autoPowerOff': return part('mode') === 'OFF' ? { mode: 'OFF' } : { mode: part('mode'), time: Number(part('time')) };
+    case 'dryLevel': return Number(part('value'));
+    default: return part('value');
+  }
+}
+async function loadDeviceSettings() {
+  $('#deviceSettings').innerHTML = '<p class="muted">Reading from the printer…</p>';
+  try {
+    const { settings, capability, labels } = await api('/api/settings');
+    deviceCap = capability;
+    $('#deviceSettings').innerHTML = Object.entries(labels).map(([key, { label }]) => `
+      <div class="setting" data-key="${key}">
+        <b>${esc(label)}</b>
+        <div class="controls">${settingControls(key, settings[key], capability)}</div>
+        <button class="ghost" data-save-setting="${key}">Save</button>
+        <p class="hint small muted">${esc(SETTING_HELP[key])}</p>
+      </div>`).join('');
+  } catch (e) {
+    $('#deviceSettings').innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-save-setting]');
+  if (!b) return;
+  const row = b.closest('.setting');
+  const key = row.dataset.key;
+  const value = readSetting(row);
+  const label = row.querySelector('b').textContent;
+  if (!(await confirmDialog(`Change ${label}`, `Write this setting to the printer? It takes effect right away.`, 'Change'))) return;
+  b.disabled = true;
+  b.textContent = 'Saving…';
+  try {
+    const r = await api('/api/settings', { method: 'POST', body: JSON.stringify({ key, value }) });
+    toast(r.verified ? `${label}: saved and confirmed by the printer.` : `${label}: the printer answered OK but reports a different value. Check it on the printer.`, !r.verified);
+    loadDeviceSettings();
+  } catch (err) {
+    toast(err.message, true);
+    b.disabled = false;
+    b.textContent = 'Save';
+  }
+});
+$('#settingsReload').addEventListener('click', loadDeviceSettings);
+
+// ---- keep-alive
+async function loadKeepAlive() {
+  try {
+    const k = await api('/api/keepalive');
+    $('#kaEnabled').checked = k.enabled;
+    $('#kaDays').value = k.days;
+    const last = k.state.lastActivityAt ? new Date(k.state.lastActivityAt).toLocaleString() : 'not seen yet';
+    const ran = k.state.lastRunAt ? new Date(k.state.lastRunAt).toLocaleString() : 'never';
+    $('#kaStatus').innerHTML = `Last printer activity: ${esc(last)} · last keep-alive: ${esc(ran)}${k.lastDecision ? `<br><span class="muted">${esc(k.lastDecision.reason)}</span>` : ''}`;
+  } catch (e) {
+    $('#kaStatus').textContent = e.message;
+  }
+}
+async function saveKeepAlive() {
+  try {
+    await api('/api/keepalive', { method: 'POST', body: JSON.stringify({ enabled: $('#kaEnabled').checked, days: Number($('#kaDays').value) }) });
+    toast('Keep-alive saved.');
+    loadKeepAlive();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+$('#kaEnabled').addEventListener('change', saveKeepAlive);
+$('#kaDays').addEventListener('change', saveKeepAlive);
+
+// ---- notifications
+async function loadNotifications() {
+  try {
+    const { prefs, categories } = await api('/api/notifications');
+    $('#notifyCats').innerHTML = Object.entries(categories).map(([k, label]) => `<label class="check"><input type="checkbox" data-ncat="${k}" ${prefs.categories[k] === false ? '' : 'checked'}> ${esc(label)}</label>`).join('');
+    $('#nQuietStart').value = prefs.quietStart;
+    $('#nQuietEnd').value = prefs.quietEnd;
+    $('#nMute').checked = prefs.mute;
+  } catch (e) {
+    $('#notifyCats').textContent = e.message;
+  }
+}
+async function saveNotifications() {
+  const categories = Object.fromEntries($$('[data-ncat]').map((c) => [c.dataset.ncat, c.checked]));
+  try {
+    await api('/api/notifications', { method: 'POST', body: JSON.stringify({ categories, quietStart: Number($('#nQuietStart').value), quietEnd: Number($('#nQuietEnd').value), mute: $('#nMute').checked }) });
+    toast('Notification settings saved.');
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-ncat], #nQuietStart, #nQuietEnd, #nMute')) saveNotifications();
+});
+$('#nTest').addEventListener('click', async () => {
+  try {
+    const r = await api('/api/notifications/test', { method: 'POST' });
+    toast(r.exitCode === 0 ? 'Sent. If nothing appeared, allow notifications for Script Editor in System Settings → Notifications.' : `osascript failed (exit ${r.exitCode}).`, r.exitCode !== 0);
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
+
 async function loadCapture() {
   try {
     const c = await api('/api/capture');

@@ -1,0 +1,572 @@
+[
+  {
+    "code": "1000",
+    "category": "Rear tray out of paper",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1000.html"
+  },
+  {
+    "code": "1003",
+    "category": "Cassette out of paper",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1003.html"
+  },
+  {
+    "code": "1200",
+    "category": "Top cover open",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1200.html"
+  },
+  {
+    "code": "1215",
+    "category": "Print head replacement in progress",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1215.html"
+  },
+  {
+    "code": "1270",
+    "category": "Rear feed slot cover open",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1270.html"
+  },
+  {
+    "code": "1300",
+    "category": "Paper jam at rear tray",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1300.html"
+  },
+  {
+    "code": "1303",
+    "category": "Paper jam at cassette",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1303.html"
+  },
+  {
+    "code": "1304",
+    "category": "Paper jam during duplex printing",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1304.html"
+  },
+  {
+    "code": "1309",
+    "category": "Paper size unsuitable for duplex",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1309.html"
+  },
+  {
+    "code": "1310",
+    "category": "Paper size may not suit duplex",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1310.html"
+  },
+  {
+    "code": "1313",
+    "category": "Paper jam while pulling in paper",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1313.html"
+  },
+  {
+    "code": "1365",
+    "category": "Ink valve open",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1365.html"
+  },
+  {
+    "code": "1366",
+    "category": "Ink valve closed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1366.html"
+  },
+  {
+    "code": "1367",
+    "category": "Not enough ink for ink flush",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1367.html"
+  },
+  {
+    "code": "1431",
+    "category": "Print head not recognised",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1431.html"
+  },
+  {
+    "code": "1432",
+    "category": "Print head not recognised",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1432.html"
+  },
+  {
+    "code": "1470",
+    "category": "Print head not installed properly",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1470.html"
+  },
+  {
+    "code": "1471",
+    "category": "Print head not recognised",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1471.html"
+  },
+  {
+    "code": "1472",
+    "category": "Print head not recognised",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1472.html"
+  },
+  {
+    "code": "1473",
+    "category": "Print head not recognised",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1473.html"
+  },
+  {
+    "code": "1476",
+    "category": "Wrong print head installed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1476.html"
+  },
+  {
+    "code": "15A1",
+    "category": "Printer setup not completed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/15A1.html"
+  },
+  {
+    "code": "1641",
+    "category": "Ink level near lower limit",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1641.html"
+  },
+  {
+    "code": "1642",
+    "category": "Ink may be insufficient",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1642.html"
+  },
+  {
+    "code": "1700",
+    "category": "Ink absorber almost full",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1700.html"
+  },
+  {
+    "code": "1701",
+    "category": "Ink absorber almost full",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1701.html"
+  },
+  {
+    "code": "1871",
+    "category": "Cassette not inserted",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1871.html"
+  },
+  {
+    "code": "1874",
+    "category": "Feed cover open, no cassette",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1874.html"
+  },
+  {
+    "code": "1890",
+    "category": "Print head packing material attached",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1890.html"
+  },
+  {
+    "code": "1892",
+    "category": "Carriage stopper still inserted",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/1892.html"
+  },
+  {
+    "code": "2110",
+    "category": "Paper settings mismatch cassette",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2110.html"
+  },
+  {
+    "code": "2113",
+    "category": "Paper settings mismatch tray",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2113.html"
+  },
+  {
+    "code": "2114",
+    "category": "Paper settings mismatch rear tray",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2114.html"
+  },
+  {
+    "code": "2120",
+    "category": "Cassette paper settings incomplete",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2120.html"
+  },
+  {
+    "code": "2123",
+    "category": "Rear tray paper settings incomplete",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2123.html"
+  },
+  {
+    "code": "2500",
+    "category": "Automatic head alignment failed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/2500.html"
+  },
+  {
+    "code": "3413",
+    "category": "Prevent paper abrasion enabled",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3413.html"
+  },
+  {
+    "code": "3439",
+    "category": "Network connection failed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3439.html"
+  },
+  {
+    "code": "3440",
+    "category": "Easy wireless connect failed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3440.html"
+  },
+  {
+    "code": "3441",
+    "category": "Easy wireless connect failed",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3441.html"
+  },
+  {
+    "code": "3442",
+    "category": "Manual duplex first side done",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3442.html"
+  },
+  {
+    "code": "3443",
+    "category": "Manual duplex first side done",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3443.html"
+  },
+  {
+    "code": "3444",
+    "category": "Manual duplex first side done",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3444.html"
+  },
+  {
+    "code": "3445",
+    "category": "Manual duplex first side done",
+    "severity": "info",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3445.html"
+  },
+  {
+    "code": "3446",
+    "category": "IP address conflict",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3446.html"
+  },
+  {
+    "code": "3447",
+    "category": "Wireless direct communication error",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3447.html"
+  },
+  {
+    "code": "3449",
+    "category": "Print head alignment required",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/3449.html"
+  },
+  {
+    "code": "4103",
+    "category": "Print settings not supported",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/4103.html"
+  },
+  {
+    "code": "4104",
+    "category": "Paper not feedable from cassette",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/4104.html"
+  },
+  {
+    "code": "495A",
+    "category": "Wi-Fi communication error",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/495A.html"
+  },
+  {
+    "code": "5100",
+    "category": "Carriage movement blocked",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5100.html"
+  },
+  {
+    "code": "5200",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5200.html"
+  },
+  {
+    "code": "5205",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5205.html"
+  },
+  {
+    "code": "5206",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5206.html"
+  },
+  {
+    "code": "5400",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5400.html"
+  },
+  {
+    "code": "5700",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5700.html"
+  },
+  {
+    "code": "5B00",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5B00.html"
+  },
+  {
+    "code": "5B01",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5B01.html"
+  },
+  {
+    "code": "5C02",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/5C02.html"
+  },
+  {
+    "code": "6000",
+    "category": "Paper jam or printer error",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6000.html"
+  },
+  {
+    "code": "6001",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6001.html"
+  },
+  {
+    "code": "6004",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6004.html"
+  },
+  {
+    "code": "6500",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6500.html"
+  },
+  {
+    "code": "6800",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6800.html"
+  },
+  {
+    "code": "6801",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6801.html"
+  },
+  {
+    "code": "6830",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6830.html"
+  },
+  {
+    "code": "6831",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6831.html"
+  },
+  {
+    "code": "6832",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6832.html"
+  },
+  {
+    "code": "6833",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6833.html"
+  },
+  {
+    "code": "6900",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6900.html"
+  },
+  {
+    "code": "6901",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6901.html"
+  },
+  {
+    "code": "6902",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6902.html"
+  },
+  {
+    "code": "6910",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6910.html"
+  },
+  {
+    "code": "6911",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6911.html"
+  },
+  {
+    "code": "6920",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6920.html"
+  },
+  {
+    "code": "6921",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6921.html"
+  },
+  {
+    "code": "6930",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6930.html"
+  },
+  {
+    "code": "6931",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6931.html"
+  },
+  {
+    "code": "6932",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6932.html"
+  },
+  {
+    "code": "6933",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6933.html"
+  },
+  {
+    "code": "6940",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6940.html"
+  },
+  {
+    "code": "6941",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6941.html"
+  },
+  {
+    "code": "6942",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6942.html"
+  },
+  {
+    "code": "6943",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6943.html"
+  },
+  {
+    "code": "6944",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6944.html"
+  },
+  {
+    "code": "6945",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6945.html"
+  },
+  {
+    "code": "6946",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6946.html"
+  },
+  {
+    "code": "6A80",
+    "category": "Paper jam near transport unit",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6A80.html"
+  },
+  {
+    "code": "6A81",
+    "category": "Paper jam near transport unit",
+    "severity": "user-fix",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6A81.html"
+  },
+  {
+    "code": "6D01",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/6D01.html"
+  },
+  {
+    "code": "7500",
+    "category": "Repair required",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/7500.html"
+  },
+  {
+    "code": "7600",
+    "category": "Repair required",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/7600.html"
+  },
+  {
+    "code": "7700",
+    "category": "Repair required",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/7700.html"
+  },
+  {
+    "code": "7800",
+    "category": "Repair required",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/7800.html"
+  },
+  {
+    "code": "C000",
+    "category": "Printer error: needs service",
+    "severity": "service",
+    "url": "https://ij.manual.canon/ij/webmanual/ErrorCode/G5000%20series/EN/ERR/C000.html"
+  }
+]

@@ -14,6 +14,10 @@ import { renderTestPageJpeg } from './testpage.js';
 import { History } from './history.js';
 import { PrintHistory } from './print-history.js';
 import { startIppProxy } from './ipp-proxy.js';
+import { getSettings, setSetting, SETTINGS } from './device-settings.js';
+import { Notifier, statusEvents, CATEGORIES } from './notify.js';
+import { observeActivity, decideKeepAlive } from './keepalive.js';
+import { runMaintenance as runMaintenanceJobOnPrinter } from './maintenance.js';
 import { describeJobAttrs, buildRawPrintJob, withCopies } from './capture.js';
 import { parseUrfHeader, urfFirstPageThumbnailBmp } from './urf.js';
 import { execFile } from 'node:child_process';
@@ -49,6 +53,7 @@ async function printAndRecord(name, jpeg, options, reprintOf) {
   }
   const entry = await prints.add({ name, jpeg, options, result, reprintOf });
   await history.add({ type: 'action', action: reprintOf ? 'reprint' : 'print', file: name, result: result.status, jobId: result.jobId });
+  if (!result.ok) await notifier.handle({ category: 'job', key: `job:${entry.id}`, title: 'Print job failed', message: `"${name}": ${result.status}` });
   return { ...result, printId: entry.id };
 }
 let config = { host: process.env.PRINTER_HOST ?? null };
@@ -82,6 +87,13 @@ async function loadConfig() {
     }
   }
 }
+
+const KEEPALIVE_DEFAULTS = { enabled: true, days: 7, windowStart: 9, windowEnd: 21 };
+const NOTIFY_DEFAULTS = { mute: false, quietStart: 21, quietEnd: 9, categories: {} };
+const notifier = new Notifier({
+  prefs: NOTIFY_DEFAULTS,
+  log: (e) => history.add({ type: 'notification', category: e.category, title: e.title, exitCode: e.exitCode }).catch(() => {}),
+});
 
 async function saveConfig() {
   await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
@@ -160,6 +172,55 @@ const routes = {
   },
   'GET /api/prints': async () => prints.list(),
   'GET /api/capture': async () => captureStatus(),
+  'GET /api/settings': async () => {
+    const r = await getSettings(requireHost());
+    cachedAutoPowerOn = r.settings.autoPowerOn;
+    return { ...r, labels: SETTINGS };
+  },
+  'POST /api/settings': async (req) => {
+    const { key, value } = await readJson(req);
+    if (!SETTINGS[key]) throw Object.assign(new Error(`"${key}" cannot be changed from this app`), { status: 400 });
+    try {
+      const r = await setSetting(requireHost(), key, value);
+      const verified = JSON.stringify(r.after) === JSON.stringify(typeof value === 'object' ? { ...r.before, ...value } : value)
+        || JSON.stringify(r.after) === JSON.stringify(value);
+      await history.add({ type: 'action', action: 'set-config', key, from: r.before, to: r.after, requested: value, verified });
+      if (key === 'autoPowerOn') cachedAutoPowerOn = r.settings.autoPowerOn;
+      return { ...r, verified };
+    } catch (e) {
+      await history.add({ type: 'action', action: 'set-config', key, requested: value, verified: false, error: e.message });
+      await notifier.handle({ category: 'settings', key: `settings:${Date.now()}`, title: 'Printer setting not changed', message: `${SETTINGS[key].label}: ${e.message}` });
+      throw e;
+    }
+  },
+  'GET /api/notifications': async () => ({ prefs: notifier.prefs, categories: CATEGORIES }),
+  'POST /api/notifications': async (req) => {
+    const body = await readJson(req);
+    const next = { ...notifier.prefs, ...body, categories: { ...notifier.prefs.categories, ...(body.categories ?? {}) } };
+    notifier.prefs = next;
+    config.notifications = next;
+    await saveConfig();
+    return next;
+  },
+  'POST /api/notifications/test': async () => {
+    const r = await notifier.send('G5040 Manager', 'Notifications are working.');
+    await history.add({ type: 'notification', category: 'test', title: 'Test notification', exitCode: r });
+    return { exitCode: r };
+  },
+  'GET /api/keepalive': async () => ({ ...keepAlivePrefs(), state: config.keepAliveState ?? {}, lastDecision }),
+  'POST /api/keepalive': async (req) => {
+    const body = await readJson(req);
+    const prefs = { ...keepAlivePrefs() };
+    if (body.enabled !== undefined) prefs.enabled = Boolean(body.enabled);
+    if (body.days !== undefined) {
+      const d = Number(body.days);
+      if (!Number.isInteger(d) || d < 1 || d > 60) throw Object.assign(new Error('Days must be a whole number from 1 to 60'), { status: 400 });
+      prefs.days = d;
+    }
+    config.keepAlive = prefs;
+    await saveConfig();
+    return { ...prefs, state: config.keepAliveState ?? {} };
+  },
   'GET /api/history': async () => history.entries.slice(-500).reverse(),
   'POST /api/identify': async () => {
     const r = await identify(requireHost());
@@ -289,15 +350,88 @@ async function handle(req, res) {
 // Sample every POLL_MS when idle, every BUSY_POLL_MS while the printer is busy, so short
 // events such as a roller cleaning started from the printer panel still reach the log.
 const BUSY_POLL_MS = Number(process.env.BUSY_POLL_MS ?? 5000);
+let prevSnapshot = null;
+let unreachableStreak = 0;
+let offlineNotified = false;
+let cachedAutoPowerOn = null;
+let lastDecision = null;
+let keepAliveRunning = false;
+
+function keepAlivePrefs() {
+  return { ...KEEPALIVE_DEFAULTS, ...(config.keepAlive ?? {}) };
+}
+
+async function notifyStatus(snapshot) {
+  if (!snapshot.reachable) unreachableStreak += 1;
+  else unreachableStreak = 0;
+  const events = statusEvents(prevSnapshot, snapshot, { unreachableStreak, wasOfflineNotified: offlineNotified });
+  for (const e of events) {
+    const r = await notifier.handle(e);
+    if (e.key === 'offline' && r.sent !== undefined) offlineNotified = true;
+    if (e.key === 'online') offlineNotified = false;
+  }
+  prevSnapshot = snapshot;
+}
+
+async function keepAliveTick(summary) {
+  const now = Date.now();
+  const status = summary
+    ? {
+      reachable: true,
+      state: summary.state,
+      acceptingJobs: summary.acceptingJobs,
+      supportCode: summary.supportCode ?? null,
+      issues: summary.issues,
+      maintenanceRunning: Boolean(summary.maintenance?.running),
+      cassettePaper: Boolean(summary.trays?.find((t) => t.source === 'Cassette')?.size) && (summary.mediaReady?.length ?? 0) > 0,
+      totalSheets: summary.totalSheets,
+    }
+    : { reachable: false, autoPowerOn: cachedAutoPowerOn };
+  const state = observeActivity(config.keepAliveState ?? {}, status, now);
+  const decision = decideKeepAlive({ now, state, status, prefs: keepAlivePrefs() });
+  lastDecision = { at: new Date(now).toISOString(), ...decision };
+  if (JSON.stringify(state) !== JSON.stringify(config.keepAliveState)) {
+    config.keepAliveState = state;
+    await saveConfig();
+  }
+  // Tell the user once per due period when it can't run for a reason they can fix.
+  if (decision.due && !decision.run && /Auto power on|cassette|support code|error/.test(decision.reason)) {
+    await notifier.handle({ category: 'keepalive', key: `keepalive-skip:${state.lastActivityAt}`, title: 'Keep-alive nozzle check skipped', message: decision.reason });
+  }
+  if (!decision.run || keepAliveRunning) return;
+  keepAliveRunning = true;
+  try {
+    await runMaintenanceJobOnPrinter(config.host, 'nozzle-check');
+    config.keepAliveState = { ...state, lastRunAt: now, lastActivityAt: now };
+    await saveConfig();
+    await history.add({ type: 'action', action: 'keepalive', result: 'nozzle check sent', reason: decision.reason });
+    await notifier.handle({ category: 'keepalive', key: `keepalive:${now}`, title: 'Keep-alive nozzle check printed', message: `${decision.reason}. Check the page: every line should be complete.` });
+  } catch (e) {
+    await history.add({ type: 'action', action: 'keepalive', result: `failed: ${e.message}` });
+    await notifier.handle({ category: 'keepalive', key: `keepalive-fail:${now}`, title: 'Keep-alive nozzle check failed', message: e.message });
+  } finally {
+    keepAliveRunning = false;
+  }
+}
+
 async function poll() {
   let next = POLL_MS;
   if (config.host) {
+    let summary = null;
     try {
-      const { summary } = await getStatus(config.host);
+      ({ summary } = await getStatus(config.host));
       await history.recordStatus(summary);
       if (summary.health === 'busy' || summary.state === 'processing') next = BUSY_POLL_MS;
     } catch (e) {
       await history.recordUnreachable(e.message);
+    }
+    try {
+      await notifyStatus(summary
+        ? { reachable: true, supportCode: summary.supportCode ?? null, supportLabel: summary.supportInfo?.category ?? null, inks: summary.inks }
+        : { reachable: false });
+      await keepAliveTick(summary);
+    } catch (e) {
+      console.error(`poll follow-up failed: ${e.message}`);
     }
   }
   setTimeout(poll, next).unref();
@@ -342,11 +476,15 @@ async function recordCapturedJob(job) {
     result: { status: job.status, ok: job.ok, jobId: job.printerJobId },
   });
   await history.add({ type: 'action', action: 'mac-print', file: job.name, result: job.status, jobId: job.printerJobId, printId: entry.id });
+  await notifier.handle(job.ok
+    ? { category: 'job', key: `job:${entry.id}`, title: 'Sent to the printer', message: `"${job.name}"${pages ? `, ${pages} page${pages > 1 ? 's' : ''}` : ''}` }
+    : { category: 'job', key: `job:${entry.id}`, title: 'Print job failed', message: `"${job.name}": ${job.status}` });
 }
 
 await history.load();
 await prints.load();
 await loadConfig();
+notifier.prefs = { ...NOTIFY_DEFAULTS, ...(config.notifications ?? {}) };
 if (config.host && LOOPBACK.test(config.host)) {
   console.error(`Ignoring loopback printer address ${config.host}`);
   config.host = null;
@@ -356,6 +494,7 @@ try {
     port: IPP_PORT,
     printerHost: () => config.host,
     spoolDir: join(DATA, 'spool'),
+    managerUrl: `http://127.0.0.1:${PORT}/`,
     onJobForwarded: recordCapturedJob,
     log: (m) => console.log(`[capture] ${m}`),
   });

@@ -162,6 +162,33 @@
 
   <section data-panel="settings" hidden>
     <article class="card">
+      <div class="row between"><h2>Printer settings</h2><button class="ghost" id="settingsReload">Reload</button></div>
+      <p class="muted small">Read from and written to the printer. Each change is read back to confirm the printer kept it, and logged in History.</p>
+      <div id="deviceSettings" class="settings-list"><p class="muted">Loading…</p></div>
+    </article>
+    <div class="grid two">
+      <article class="card">
+        <h2>Keep-alive nozzle check</h2>
+        <p class="muted small">Prints a nozzle check when nothing has gone through the printer for a while, so the ink in the print head doesn't dry. Runs between 09:00 and 21:00, only when the printer is ready and the cassette has plain paper.</p>
+        <div class="form">
+          <label class="check"><input type="checkbox" id="kaEnabled"> On</label>
+          <label>After this many idle days <input type="number" id="kaDays" min="1" max="60"></label>
+        </div>
+        <p class="small" id="kaStatus"></p>
+      </article>
+      <article class="card">
+        <h2>Notifications</h2>
+        <div id="notifyCats" class="checks-list"></div>
+        <div class="form">
+          <label>Quiet from <input type="number" id="nQuietStart" min="0" max="23"></label>
+          <label>until <input type="number" id="nQuietEnd" min="0" max="23"></label>
+          <label class="check"><input type="checkbox" id="nMute"> Mute all</label>
+        </div>
+        <p class="small muted">Errors are shown even in quiet hours. Notifications appear as "Script Editor": if the test shows nothing, open System Settings → Notifications → Script Editor and allow notifications.</p>
+        <button class="ghost" id="nTest">Send test notification</button>
+      </article>
+    </div>
+    <article class="card">
       <h2>Mac print capture</h2>
       <div id="captureStatus" class="muted">Loading…</div>
     </article>
