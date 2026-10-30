@@ -393,12 +393,23 @@ $('#attrFilter').addEventListener('input', () => allAttrs && renderAttrs());
 
 // ---- history
 function describe(e) {
-  if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}`;
+  if (e.type === 'status') return `${e.headline ?? e.state}${e.state === 'unreachable' && e.error ? ` (${e.error})` : ''}${e.inks ? ` · ink ${Object.entries(e.inks).map(([k, v]) => `${k.split(' ')[0]} ${v}%`).join(', ')}` : ''}${e.raw ? ` · ${rawSignals(e.raw)}` : ''}`;
   if (e.type === 'action' && e.action === 'reprint') return `You re-printed "${e.file}" → ${e.result}`;
   if (e.type === 'action') return `You ran: ${state.maintenance[e.action]?.label ?? e.action}${e.file ? ` "${e.file}"` : ''}${e.forced ? ' (sent while busy)' : ''}${e.result ? ` → ${e.result}` : ''}`;
   if (e.type === 'diagnostics') return e.failing.length ? `Diagnostics: failing ${e.failing.join(', ')}` : 'Diagnostics: all checks passed';
   return JSON.stringify(e);
 }
+function rawSignals(r) {
+  return [
+    `IPP ${r.ippState}${r.ippReasons?.filter((x) => x !== 'none').length ? `/${r.ippReasons.join(',')}` : ''}`,
+    r.remoteUiCode != null && `UI ${r.remoteUiCode}`,
+    r.chmpStatus && `CHMP ${r.chmpStatus}${r.chmpStatusDetail ? `/${r.chmpStatusDetail}` : ''}`,
+    r.supportCode && `code ${r.supportCode}`,
+    r.maintenance && `maint ${r.maintenance.operation}${r.maintenance.type ? `:${r.maintenance.type}` : ''}`,
+    r.totalSheets != null && `${r.totalSheets} sheets`,
+  ].filter(Boolean).join(' · ');
+}
+
 async function loadHistory() {
   const entries = await api('/api/history');
   $('#log').innerHTML = entries.length

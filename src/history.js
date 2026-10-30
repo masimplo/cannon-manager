@@ -41,8 +41,9 @@ export class History {
       acceptingJobs: summary.acceptingJobs,
       inks: Object.fromEntries(summary.inks.map((i) => [i.name, i.level])),
       issues: summary.issues.map((i) => i.code),
+      ...(summary.raw ? { raw: summary.raw } : {}),
     };
-    const key = (s) => s && JSON.stringify([s.state, s.headline, s.health, s.acceptingJobs, s.inks, s.issues]);
+    const key = (s) => s && JSON.stringify([s.state, s.headline, s.health, s.acceptingJobs, s.inks, s.issues, s.raw ?? null]);
     if (key(sample) === key(this.last)) return null;
     this.last = sample;
     return this.add(sample);

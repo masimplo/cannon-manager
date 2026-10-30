@@ -23,6 +23,19 @@ export async function getStatus(host) {
   ]);
   const maintenance = await getMaintenanceStatus(host).catch(() => null);
   const summary = summarize(attrs, remoteUi.error ? null : remoteUi, maintenance);
+  // Every signal the printer exposes, logged on change, so operations that don't move the
+  // headline (an ink flush started from the panel did not, on 2026-10-30) still leave a trace.
+  summary.raw = {
+    ippState: attrs['printer-state'],
+    ippReasons: [].concat(attrs['printer-state-reasons'] ?? []),
+    remoteUiCode: remoteUi.error ? null : remoteUi.busyState,
+    chmpStatus: chmp.error ? null : chmp.print.status,
+    chmpStatusDetail: chmp.error ? null : chmp.print.statusDetail,
+    supportCode: chmp.error ? null : chmp.print.supportCode,
+    chmpJob: chmp.error ? null : chmp.print.jobInfo,
+    maintenance: maintenance?.running ? maintenance : null,
+    totalSheets: chmp.error ? null : chmp.device.totalSheets,
+  };
   if (!chmp.error) {
     summary.trays = chmp.print.trays;
     summary.supportCode = chmp.print.supportCode;
